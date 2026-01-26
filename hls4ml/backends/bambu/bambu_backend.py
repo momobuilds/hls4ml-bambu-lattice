@@ -310,7 +310,8 @@ class BambuBackend(FPGABackend):
         run_kwargs=None,
         parse_report=True,
     ):
-        """Run Bambu HLS on given model, adding some default arguments for compatability
+        """Run Bambu HLS on the given model, adding some default arguments for compatability. 
+        The formatted Bambu command is outputted to build_bambu.sh then called.
 
         Args:
             model (ModelGraph): Model to be built with Bambu.
@@ -371,6 +372,15 @@ class BambuBackend(FPGABackend):
 
         command_str = ' '.join(shlex.quote(str(token)) for token in command_tokens)
 
+        # Write formatted command to build_bambu.sh for later execution
+        script_path = os.path.join(project_dir, 'build_bambu.sh')
+        script_contents = f"""#!/bin/bash\nset -e\n{command_str}"""
+
+        with open(script_path, 'w') as f:
+            f.write(script_contents)
+
+        os.chmod(script_path, 0o755)
+
         if dry_run:
             return {
                 'command': command_tokens,
@@ -405,7 +415,7 @@ class BambuBackend(FPGABackend):
             run_kwargs['capture_output'] = True
 
         completed = subprocess.run(
-            command_tokens,
+            ['bash', 'build_bambu.sh'],
             cwd=project_dir,
             env=run_env,
             check=check,
