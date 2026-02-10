@@ -62,18 +62,51 @@ def test_pool1d(backend, keras_model_1d, data_1d, io_type):
         model, default_precision='ap_fixed<32,9>', granularity='name', backend=backend
     )
 
+    y_keras = model.predict(data_1d)
+
+    other_args = {}
+
+    output_dir = test_root_path / f'hls4mlprj_globalpool1d_{backend}_{io_type}_{model_type}_padding_{padding}_{strides}'
+
+    if backend == 'Bambu':
+        input_data_tb = output_dir / f'tb_input_{model_type}_pooling_{padding}_{io_type}.npy'
+        output_data_tb = output_dir / f'tb_output_{model_type}_pooling_{padding}_{io_type}.npy'
+        np.save(input_data_tb, data_1d)
+        np.save(output_data_tb, y_keras)
+        other_args['input_data_tb'] = str(input_data_tb)
+        other_args['output_data_tb'] = str(output_data_tb)
+
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
         io_type=io_type,
-        output_dir=str(
-            test_root_path / f'hls4mlprj_globalpool1d_{backend}_{io_type}_{model_type}_padding_{padding}_{strides}'
-        ),
+        output_dir=str(output_dir),
         backend=backend,
+        **other_args,
     )
     hls_model.compile()
 
-    y_keras = model.predict(data_1d)
+    if backend == 'Bambu':
+        tb_file = f'{hls_model.config.get_project_name()}_test.cpp'
+        bambu_output = hls_model.build(
+            check=True,
+            args=[
+                f'--generate-tb={tb_file}',
+                '--simulate',
+                '--generate-interface=INFER',
+                '--compiler=I386_CLANG16'
+            ],
+            capture_output=True
+        )
+        with open(str(output_dir / 'Bambu_output.txt'), 'w') as f:
+            f.write('=== BAMBU STDOUT ===\n')
+            f.write(bambu_output['stdout'])
+            f.write('\n')
+            f.write('====================\n')
+            f.write(bambu_output['stderr'])
+            f.write('\n')
+            f.write('====================\n')
+
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
