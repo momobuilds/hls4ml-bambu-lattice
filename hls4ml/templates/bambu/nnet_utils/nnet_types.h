@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdio>
 
+#include "ap_int.h"
+
 namespace nnet {
 
 // Fixed-size array
