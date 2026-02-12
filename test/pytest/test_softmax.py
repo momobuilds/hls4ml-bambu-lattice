@@ -19,7 +19,7 @@ def generate_data(input_shape):
     return np.clip(d, -32, 31)
 
 
-@pytest.mark.parametrize('backend', ['Vivado', 'Vitis', 'Quartus', 'Catapult'])
+@pytest.mark.parametrize('backend', ['Bambu', 'Vivado', 'Vitis', 'Quartus', 'Catapult'])
 @pytest.mark.parametrize('strategy', ['stable', 'latency', 'argmax'])
 @pytest.mark.parametrize(
     'input_bits,input_shape,table_bits,io_type,custom_accum',

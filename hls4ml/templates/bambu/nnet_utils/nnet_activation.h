@@ -201,12 +201,12 @@ void init_exp_table(typename CONFIG_T::exp_table_t table_out[CONFIG_T::exp_table
 template <class data_T, typename CONFIG_T, bool negative>
 constexpr typename CONFIG_T::exp_table_t compute_exp_index(size_t i) {
     float x = softmax_real_val_from_idx<data_T, CONFIG_T::exp_table_size>(i) * CONFIG_T::exp_scale;
-    typename CONFIG_T::exp_table_t exp_x = exp_fcn_float(x);
     if (negative) {
         // for normalized inputs, we keep the normalization values positive (x_bar = x_max - x)
         // so we need to negate the input (exp(-x_bar) = exp(x - x_max))
         x = -x;
     }
+    typename CONFIG_T::exp_table_t exp_x = exp_fcn_float(x);
     return exp_x;
 }
 
@@ -271,7 +271,7 @@ void softmax_latency(data_T data[CONFIG_T::n_slice], res_T res[CONFIG_T::n_slice
         initialized = true;
     }
 #else
-    static constexpr const ::std::array<typename CONFIG_T::exp_table_t, CONFIG_T::table_size> exp_table =
+    static constexpr const ::std::array<typename CONFIG_T::exp_table_t, CONFIG_T::exp_table_size> exp_table =
         init_exp_table<data_T, CONFIG_T, false>();
 #endif
 #ifdef OLD_INVERT
