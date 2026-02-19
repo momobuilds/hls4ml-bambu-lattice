@@ -12,6 +12,7 @@ my-hls-test
 docs/_build
 docs/autodoc/*
 hls4mlprj_*
+test/pytest/test_*_test_*
 *~
 *.ipynb_checkpoints/
 *.bak
