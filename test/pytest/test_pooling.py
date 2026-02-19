@@ -32,7 +32,6 @@ def keras_model_1d(request):
     model.compile()
     return model, model_type, pads, strides
 
-
 @pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'Catapult', 'oneAPI', 'Bambu'])
 @pytest.mark.parametrize(
     'keras_model_1d',
@@ -55,7 +54,7 @@ def keras_model_1d(request):
     indirect=True,
 )
 @pytest.mark.parametrize('io_type', ['io_parallel'])
-def test_pool1d(backend, keras_model_1d, data_1d, io_type):
+def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
     model, model_type, padding, strides = keras_model_1d
 
     config = hls4ml.utils.config_from_keras_model(
@@ -81,7 +80,7 @@ def test_pool1d(backend, keras_model_1d, data_1d, io_type):
         model,
         hls_config=config,
         io_type=io_type,
-        output_dir=str(output_dir),
+        output_dir=str(test_root_path / test_case_id),
         backend=backend,
         **other_args,
     )
@@ -113,7 +112,7 @@ def test_pool1d(backend, keras_model_1d, data_1d, io_type):
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
 @pytest.mark.parametrize(
     'keras_model_1d',
     [
@@ -127,7 +126,7 @@ def test_pool1d(backend, keras_model_1d, data_1d, io_type):
     indirect=True,
 )
 @pytest.mark.parametrize('io_type', ['io_stream'])
-def test_pool1d_stream(backend, keras_model_1d, data_1d, io_type):
+def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
     model, model_type, padding, _ = keras_model_1d
 
     config = hls4ml.utils.config_from_keras_model(model, default_precision='ap_fixed<32,9>', granularity='name')
@@ -152,6 +151,7 @@ def test_pool1d_stream(backend, keras_model_1d, data_1d, io_type):
         hls_config=config,
         output_dir=str(output_dir),
         io_type=io_type,
+        output_dir=str(test_root_path / test_case_id),
         backend=backend,
         **other_args
     )
@@ -224,7 +224,7 @@ def keras_model_2d(request):
     indirect=True,
 )
 @pytest.mark.parametrize('io_type', ['io_parallel'])
-def test_pool2d(backend, keras_model_2d, data_2d, io_type):
+def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
     model, model_type, padding, strides = keras_model_2d
 
     config = hls4ml.utils.config_from_keras_model(
@@ -252,6 +252,7 @@ def test_pool2d(backend, keras_model_2d, data_2d, io_type):
         hls_config=config,
         output_dir=str(output_dir),
         io_type=io_type,
+        output_dir=str(test_root_path / test_case_id),
         backend=backend,
         **other_args,
     )
@@ -283,7 +284,7 @@ def test_pool2d(backend, keras_model_2d, data_2d, io_type):
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
 @pytest.mark.parametrize(
     'keras_model_2d',
     [
@@ -297,7 +298,7 @@ def test_pool2d(backend, keras_model_2d, data_2d, io_type):
     indirect=True,
 )
 @pytest.mark.parametrize('io_type', ['io_stream'])
-def test_pool2d_stream(backend, keras_model_2d, data_2d, io_type):
+def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
     model, model_type, padding, _ = keras_model_2d
 
     config = hls4ml.utils.config_from_keras_model(model, default_precision='ap_fixed<32,9>', granularity='name')
@@ -321,7 +322,7 @@ def test_pool2d_stream(backend, keras_model_2d, data_2d, io_type):
         model,
         hls_config=config,
         io_type=io_type,
-        output_dir=str(output_dir),
+        output_dir=str(test_root_path / test_case_id),
         backend=backend,
         **other_args,
     )
