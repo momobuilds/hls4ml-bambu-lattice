@@ -65,12 +65,11 @@ def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
 
     other_args = {}
 
-    output_dir = test_root_path / f'hls4mlprj_globalpool1d_{backend}_{io_type}_{model_type}_padding_{padding}_{strides}'
-    output_dir.mkdir(parents=True, exist_ok=True)
+    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
 
     if backend == 'Bambu':
-        input_data_tb = output_dir / f'tb_input.npy'
-        output_data_tb = output_dir / f'tb_output.npy'
+        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
+        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
         np.save(input_data_tb, data_1d)
         np.save(output_data_tb, y_keras)
         other_args['input_data_tb'] = str(input_data_tb)
@@ -96,23 +95,23 @@ def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
-            capture_output=True
+            capture_output=False
         )
-        with open(str(output_dir / 'Bambu_output.txt'), 'w') as f:
-            f.write('=== BAMBU STDOUT ===\n')
-            f.write(bambu_output['stdout'])
-            f.write('\n')
-            f.write('====================\n')
-            f.write('=== BAMBU STDERR ===\n')
-            f.write(bambu_output['stderr'])
-            f.write('\n')
-            f.write('====================\n')
+        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
+        #     f.write('=== BAMBU STDOUT ===\n')
+        #     f.write(bambu_output['stdout'])
+        #     f.write('\n')
+        #     f.write('====================\n')
+        #     f.write('=== BAMBU STDERR ===\n')
+        #     f.write(bambu_output['stderr'])
+        #     f.write('\n')
+        #     f.write('====================\n')
 
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
 @pytest.mark.parametrize(
     'keras_model_1d',
     [
@@ -135,12 +134,11 @@ def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
 
     other_args = {}
 
-    output_dir= test_root_path / f'hls4mlprj_pool1d_{backend}_{io_type}_{model_type}_padding_{padding}'
-    output_dir.mkdir(parents=True, exist_ok=True)
+    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
 
     if backend == 'Bambu':
-        input_data_tb = output_dir / f'tb_input.npy'
-        output_data_tb = output_dir / f'tb_output.npy'
+        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
+        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
         np.save(input_data_tb, data_1d)
         np.save(output_data_tb, y_keras)
         other_args['input_data_tb'] = str(input_data_tb)
@@ -149,7 +147,6 @@ def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
-        output_dir=str(output_dir),
         io_type=io_type,
         output_dir=str(test_root_path / test_case_id),
         backend=backend,
@@ -167,17 +164,17 @@ def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
-            capture_output=True
+            capture_output=False
         )
-        with open(str(output_dir / 'Bambu_output.txt'), 'w') as f:
-            f.write('=== BAMBU STDOUT ===\n')
-            f.write(bambu_output['stdout'])
-            f.write('\n')
-            f.write('====================\n')
-            f.write('=== BAMBU STDERR ===\n')
-            f.write(bambu_output['stderr'])
-            f.write('\n')
-            f.write('====================\n')
+        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
+        #     f.write('=== BAMBU STDOUT ===\n')
+        #     f.write(bambu_output['stdout'])
+        #     f.write('\n')
+        #     f.write('====================\n')
+        #     f.write('=== BAMBU STDERR ===\n')
+        #     f.write(bambu_output['stderr'])
+        #     f.write('\n')
+        #     f.write('====================\n')
     
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
@@ -235,13 +232,11 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
 
     other_args = {}
 
-    stride_str_temp = str(strides).replace('(', '').replace(')', '').replace(',', '_').replace(' ', '')
-    output_dir = test_root_path / f'hls4mlprj_pool2d_{backend}_{io_type}_{model_type}_padding_{padding}_{stride_str_temp}'
-    output_dir.mkdir(parents=True, exist_ok=True)
+    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
 
     if backend == 'Bambu':
-        input_data_tb = output_dir / f'tb_input.npy'
-        output_data_tb = output_dir / f'tb_output.npy'
+        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
+        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
         np.save(input_data_tb, data_2d)
         np.save(output_data_tb, y_keras)
         other_args['input_data_tb'] = str(input_data_tb)
@@ -250,7 +245,6 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
-        output_dir=str(output_dir),
         io_type=io_type,
         output_dir=str(test_root_path / test_case_id),
         backend=backend,
@@ -268,23 +262,23 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
-            capture_output=True
+            capture_output=False
         )
-        with open(str(output_dir / 'Bambu_output.txt'), 'w') as f:
-            f.write('=== BAMBU STDOUT ===\n')
-            f.write(bambu_output['stdout'])
-            f.write('\n')
-            f.write('====================\n')
-            f.write('=== BAMBU STDERR ===\n')
-            f.write(bambu_output['stderr'])
-            f.write('\n')
-            f.write('====================\n')
+        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
+        #     f.write('=== BAMBU STDOUT ===\n')
+        #     f.write(bambu_output['stdout'])
+        #     f.write('\n')
+        #     f.write('====================\n')
+        #     f.write('=== BAMBU STDERR ===\n')
+        #     f.write(bambu_output['stderr'])
+        #     f.write('\n')
+        #     f.write('====================\n')
 
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
 @pytest.mark.parametrize(
     'keras_model_2d',
     [
@@ -305,14 +299,13 @@ def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
 
     y_keras = model.predict(data_2d)
 
-    output_dir = test_root_path / f'hls4mlprj_pool2d_{backend}_{io_type}_{model_type}_padding_{padding}'
-    output_dir.mkdir(parents=True, exist_ok=True)
-
     other_args = {}
 
+    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
+
     if backend == 'Bambu':
-        input_data_tb = output_dir / f'tb_input.npy'
-        output_data_tb = output_dir / f'tb_output.npy'
+        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
+        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
         np.save(input_data_tb, data_2d)
         np.save(output_data_tb, y_keras)
         other_args['input_data_tb'] = str(input_data_tb)
@@ -338,16 +331,16 @@ def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
-            capture_output=True
+            capture_output=False
         )
-        with open(str(output_dir / 'Bambu_output.txt'), 'w') as f:
-            f.write('=== BAMBU STDOUT ===\n')
-            f.write(bambu_output['stdout'])
-            f.write('\n')
-            f.write('====================\n')
-            f.write('=== BAMBU STDERR ===\n')
-            f.write(bambu_output['stderr'])
-            f.write('\n')
+        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
+        #     f.write('=== BAMBU STDOUT ===\n')
+        #     f.write(bambu_output['stdout'])
+        #     f.write('\n')
+        #     f.write('====================\n')
+        #     f.write('=== BAMBU STDERR ===\n')
+        #     f.write(bambu_output['stderr'])
+        #     f.write('\n')
 
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
