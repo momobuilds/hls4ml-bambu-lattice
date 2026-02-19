@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdio>
+#include "ap_fixed.h"
 
 namespace nnet {
 
