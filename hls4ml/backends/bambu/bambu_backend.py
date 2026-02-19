@@ -418,11 +418,17 @@ class BambuBackend(FPGABackend):
                          os.path.join('firmware', f'{project_name}.cpp'), 
                          f'--top-fname={project_name}'
                         ]
-        REQ_ARGS      = ['-lm', 
-                         '-Ifirmware/ac_types',
-                         '--compiler=I386_CLANG16',
-                         '--generate-interface=INFER'
-                        ]
+        if os.environ.get('USE_BAMBU_AC_TYPES'):
+            REQ_ARGS = ['-lm',
+                        '--compiler=I386_CLANG16',
+                        '--generate-interface=INFER'
+                       ]
+        else:
+            REQ_ARGS = ['-lm', 
+                        '-Ifirmware/ac_types',
+                        '--compiler=I386_CLANG16',
+                        '--generate-interface=INFER'
+                       ]
         CMD_ARGS      = []
         
         result = {}
