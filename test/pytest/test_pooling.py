@@ -92,6 +92,7 @@ def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
             args=[
                 f'--generate-tb={tb_file}',
                 '--simulate',
+                '--evaluation',
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
@@ -161,6 +162,7 @@ def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
             args=[
                 f'--generate-tb={tb_file}',
                 '--simulate',
+                '--evaluation',
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
@@ -259,6 +261,7 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
             args=[
                 f'--generate-tb={tb_file}',
                 '--simulate',
+                '--evaluation',
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
@@ -328,6 +331,7 @@ def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
             args=[
                 f'--generate-tb={tb_file}',
                 '--simulate',
+                '--evaluation',
                 '--generate-interface=INFER',
                 '--compiler=I386_CLANG16'
             ],
