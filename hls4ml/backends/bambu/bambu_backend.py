@@ -370,7 +370,7 @@ class BambuBackend(FPGABackend):
             model (ModelGraph): Model to be built with Bambu.
             reset (bool, optional): Does nothing, only in signature for compatability with VitisBackend.
             csim (bool, optional): Run C-Simulation of model on its testbench. Defaults to false.
-            synth (bool, optional): Synthesize model with Bambu. If set to false, Bambu is not called.
+            synth (bool, optional): Standard CPP to HDL translation with Bambu. If set to false, Bambu is not called.
             cosim (bool, optional): Run RTL-Cosimulation of model on its testbench. Defaults to false.
             validation (bool, optional): Checks for bitwise equality of csim and cosim results.
             export (bool, optional): NotImplemented (will create exported IP in project directory)
@@ -379,7 +379,7 @@ class BambuBackend(FPGABackend):
                 Bambu. User will need the part downloaded in their Vivado installation.
                 Bambu requires cosim=True to run vsynth.
             fifo_opt (bool, optional): NotImplemented (will optimize FIFO length based on RTL cosim)
-            log_to_stdout (bool, optional): Forward Bambu's ``stdout`` and ``stderr`` to Python
+            log_to_stdout (bool, optional): Forward Bambu's ``stdout`` and ``stderr`` to system
             args (str | Sequence[str] | None): Arguments appended to default Bambu command for this model.
             env (Mapping[str, str] | None): Environment overrides applied to the subprocess.
             run_kwargs (dict | None): Additional keyword arguments forwarded to ``subprocess.run``.

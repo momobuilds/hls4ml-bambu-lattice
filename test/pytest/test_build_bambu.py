@@ -1,5 +1,9 @@
+import filecmp
+import numpy as np
 import os
 import pytest
+import shutil
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -8,24 +12,26 @@ from tensorflow.keras.models import Sequential
 
 import hls4ml
 
+test_root_path = Path(__file__).parent
+proj_dir = test_root_path / 'hls4mlprj_build_bambu'
+
 # -----------------------------------------------------------------------------
 # fixtures
 # -----------------------------------------------------------------------------
 
 @pytest.fixture
-def hls_model_setup(tmp_path):
+def hls_model_setup():
     """Fixture to create basic HLS model for Bambu backend"""
+    clean_proj_dir(proj_dir)
+
     model = Sequential()
     model.add(Dense(5, input_shape=(16,), name='fc1', activation='relu'))
 
     config = hls4ml.utils.config_from_keras_model(model, granularity='model')
-
-    output_dir = str(tmp_path / f'hls4mlprj_build_bambu')
-
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
-        output_dir=output_dir,
+        output_dir=str(proj_dir),
         backend="Bambu",
     )
 
@@ -57,6 +63,15 @@ def patch_bambu_available(monkeypatch):
 
 def patch_bambu_unavailable(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _: None)
+
+def count_ext_files(directory, extension):
+    """Counts how many files in the directory and all its
+    subdirectories have files that end with extension"""
+    return sum(1 for _ in Path(directory).rglob(f"*{extension}"))
+
+def clean_proj_dir(proj_dir):
+    if proj_dir.exists():
+        shutil.rmtree(proj_dir)
 
 # -----------------------------------------------------------------------------
 # tests
@@ -232,3 +247,142 @@ def test_bambu_missing_raises(hls_model_setup, monkeypatch):
 
     with pytest.raises(EnvironmentError):
         model.build()
+
+
+def test_csim(tmp_path):
+    """Test that csim produces similar results to the
+    CPP implementation of the HLS4ML model.
+    """
+    csim_proj_dir = test_root_path / 'hls4mlprj_build_bambu_csim'
+
+    model = Sequential()
+    model.add(Dense(5, input_shape=(16,), name='fc1', activation='relu'))
+
+    # Create CPP bridge predictions
+    clean_proj_dir(csim_proj_dir)
+    config = hls4ml.utils.config_from_keras_model(model, granularity='model')
+    hls_model = hls4ml.converters.convert_from_keras_model(
+        model,
+        hls_config=config,
+        output_dir=str(csim_proj_dir),
+        backend="Bambu"
+    )
+    hls_model.compile()
+
+    X = np.random.rand(8, 16).astype(np.float32)
+    Y = hls_model.predict(X)
+    np.save(tmp_path / 'input.npy', X)
+    np.save(tmp_path / 'output.npy', Y)
+
+    # Create Bambu csim predictions
+    clean_proj_dir(csim_proj_dir)
+    hls_model = hls4ml.converters.convert_from_keras_model(
+        model,
+        hls_config=config,
+        output_dir=str(csim_proj_dir),
+        backend="Bambu",
+        input_data_tb=str(tmp_path / 'input.npy'),
+        output_data_tb=str(tmp_path / 'output.npy')
+    )
+    result = hls_model.build(csim=True)
+
+    Y_bridge = np.loadtxt(csim_proj_dir / 'tb_data' / 'tb_output_predictions.dat')
+    Y_csim = result['predictions_csim']
+
+    assert np.allclose(Y_bridge, Y_csim, rtol=0, atol=1e-4)
+
+
+def test_cosim(tmp_path):
+    """Test that cosim produces similar results to the
+    CPP implementation of the HLS4ML model.
+    """
+    cosim_proj_dir = test_root_path / 'hls4mlprj_build_bambu_cosim'
+
+    model = Sequential()
+    model.add(Dense(5, input_shape=(16,), name='fc1', activation='relu'))
+
+    # Create CPP bridge predictions
+    clean_proj_dir(cosim_proj_dir)
+    config = hls4ml.utils.config_from_keras_model(model, granularity='model')
+    hls_model = hls4ml.converters.convert_from_keras_model(
+        model,
+        hls_config=config,
+        output_dir=str(cosim_proj_dir),
+        backend="Bambu"
+    )
+    hls_model.compile()
+
+    X = np.random.rand(8, 16).astype(np.float32)
+    Y = hls_model.predict(X)
+    np.save(tmp_path / 'input.npy', X)
+    np.save(tmp_path / 'output.npy', Y)
+
+    # Create Bambu cosim predictions
+    clean_proj_dir(cosim_proj_dir)
+    hls_model = hls4ml.converters.convert_from_keras_model(
+        model,
+        hls_config=config,
+        output_dir=str(cosim_proj_dir),
+        backend="Bambu",
+        input_data_tb=str(tmp_path / 'input.npy'),
+        output_data_tb=str(tmp_path / 'output.npy')
+    )
+    result = hls_model.build(synth=True, cosim=True)
+
+    Y_bridge = np.loadtxt(cosim_proj_dir / 'tb_data' / 'tb_output_predictions.dat')
+    Y_cosim = result['predictions_cosim']
+
+    assert np.allclose(Y_bridge, Y_cosim, rtol=0, atol=1e-4)
+
+
+def test_validation_output(hls_model_setup):
+    """Test that validation produces the two testbench output files and validates
+    them correctly. This also tests csim and cosim, because validation does not run/
+    is not valid without running both.
+    """
+    model = hls_model_setup
+    result = model.build(csim=True, synth=True, cosim=True, validation=True)
+
+    # csim
+    csim_path = proj_dir / 'tb_data' / 'csim_results.log'
+    assert csim_path.exists()
+
+    # cosim
+    cosim_path = proj_dir / 'tb_data' / 'rtl_cosim_results.log'
+    assert cosim_path.exists()
+
+    # validation
+    if filecmp.cmp(csim_path, cosim_path, shallow=False):
+        assert result['valid'] == True
+    else:
+        assert result['valid'] == False
+
+
+def test_vsynth_output():
+    """Test that a successful vsynth run produces the desired reports.
+    Uses 7-Series Artix part "xc7a100tcsg324-1" to synthesize in Vivado.
+    """
+    vsynth_proj_dir = test_root_path / 'hls4mlprj_build_bambu_vsynth'
+
+    # Create synthesizable HLS4ML model
+    model = Sequential()
+    model.add(Dense(5, input_shape=(16,), name='fc1', activation='relu'))
+
+    config = hls4ml.utils.config_from_keras_model(model, granularity='model')
+    hls_model = hls4ml.converters.convert_from_keras_model(
+        model,
+        hls_config=config,
+        output_dir=str(vsynth_proj_dir),
+        backend="Bambu",
+        clock_period=10,
+        part_name='xc7a100tcsg324-1'
+    )
+    hls_model.build(synth=True, cosim=True, vsynth=True)
+
+    # Ensure we get bambu results file
+    assert sum(1 for _ in vsynth_proj_dir.rglob("bambu_results_*.xml")) >= 1
+
+    # Ensure we get expected reports
+    num_reports = count_ext_files(vsynth_proj_dir / 'HLS_output', '.rpt')
+    assert num_reports >= 15
+
