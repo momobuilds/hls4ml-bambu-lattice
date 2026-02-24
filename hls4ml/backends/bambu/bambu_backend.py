@@ -1,4 +1,6 @@
+import filecmp
 import os
+from pathlib import Path
 import shlex
 import shutil
 import subprocess
@@ -46,6 +48,54 @@ from hls4ml.model.types import (
 from hls4ml.report import parse_bambu_report
 from hls4ml.utils import attribute_descriptions as descriptions
 from hls4ml.utils.einsum_utils import parse_einsum
+
+
+partname_to_bambudevicename = {
+    # Intel/Altera
+    "5CSEMA5F31C6" : "5CSEMA5F31C6",
+    "5SGXEA7N2F45C1" : "5SGXEA7N2F45C1",
+    "EP2C70F896C6" : "EP2C70F896C6",
+    "EP2C70F896C6-R" : "EP2C70F896C6",
+    "EP4SGX530KH40C2" : "EP4SGX530KH40C2",
+    # : "LFE335EA8FN484C",
+    # : "LFE5U85F8BG756C", 
+    # : "LFE5UM85F8BG756C", 
+
+    # ASAP7 (ASIC)
+    # : "asap7-BC", 
+    # : "asap7-TC", 
+    # : "asap7-WC", 
+    
+    # Standard cells / tech libraries 
+    # : "nangate45", 
+
+    # NaNGate / Nextgrids
+    # : "nx1h140tsp",
+    # : "nx1h35S",
+    # : "nx2h540tsc", 
+
+    # Xilinx legacy
+    # : "xc4vlx100-10ff1513", 
+    # : "xc5vlx110t-1ff1136", 
+    # : "xc5vlx330t-2ff1738", 
+    # : "xc5vlx50-3ff1153",
+    # : "xc6vlx240t-1ff1156", 
+
+    # 7-series
+    "xc7a100tcsg324-1" : "xc7a100t-1csg324-VVD",  # 7-series Artix! confirmed working, using as default for now
+    # : "xc7vx330t-1ffg1157",
+    # : "xc7vx485t-2ffg1761-VVD",
+    # : "xc7vx690t-3ffg1930-VVD", 
+    # : "xc7z020-1clg484",
+    # : "xc7z020-1clg484-VVD", 
+    # : "xc7z020-1clg484-YOSYS-VVD", 
+    # : "xc7z045-2ffg900-VVD",
+
+    # UltraScale / UltraScale+
+    # : "xcku060-3ffva1156-VVD", 
+    # : "xcu280-2Lfsvh2892-VVD", 
+    "xcu55c-fsvh2892-2L-e" : "xcu55c-2Lfsvh2892-VVD",
+}
 
 
 class BambuBackend(FPGABackend):
@@ -253,7 +303,7 @@ class BambuBackend(FPGABackend):
 
     def create_initial_config(
         self,
-        part='xcvu13p-flga2577-2-e',
+        part='xc7a100tcsg324-1',
         clock_period=5,
         clock_uncertainty='12.5%',
         io_type='io_parallel',
@@ -266,7 +316,7 @@ class BambuBackend(FPGABackend):
         """Create initial configuration of the Bambu backend.
 
         Args:
-            part (str, optional): The FPGA part to be used. Defaults to 'xcvu13p-flga2577-2-e'.
+            part (str, optional): The FPGA part to be used. Defaults to 'xc7a100tcsg324-1'.
             clock_period (int, optional): The clock period. Defaults to 5.
             clock_uncertainty (str, optional): The clock uncertainty. Defaults to 12.5%.
             io_type (str, optional): Type of implementation used. One of
@@ -283,7 +333,7 @@ class BambuBackend(FPGABackend):
         """
         config = {}
 
-        config['Part'] = part if part is not None else 'xcvu13p-flga2577-2-e'
+        config['Part'] = part if part is not None else 'xc7a100tcsg324-1'
         config['ClockPeriod'] = clock_period if clock_period is not None else 5
         config['ClockUncertainty'] = clock_uncertainty if clock_uncertainty is not None else '12.5%'
         config['IOType'] = io_type if io_type is not None else 'io_parallel'
@@ -300,49 +350,65 @@ class BambuBackend(FPGABackend):
     def build(
         self,
         model,
-        args=None,
         *,
-        capture_output=False,
-        debug_IR=False,
-        check=False,
-        dry_run=False,
+        reset=False,
+        csim=False,
+        synth=True,
+        cosim=False,
+        validation=False,
+        export=False,
+        vsynth=False,
+        fifo_opt=False,
+        log_to_stdout=True,
+        args=None,
         env=None,
         run_kwargs=None,
-        parse_report=True,
     ):
-        """Run Bambu HLS on given model, adding some default arguments for compatability
+        """Run Bambu HLS on given model. Enable/disable parts of synthesis process based on boolean arguments.
+        Pass extra Bambu-specific arguments via the ``args`` command.
 
         Args:
             model (ModelGraph): Model to be built with Bambu.
+            reset (bool, optional): Does nothing, only in signature for compatability with VitisBackend.
+            csim (bool, optional): Run C-Simulation of model on its testbench. Defaults to false.
+            synth (bool, optional): Standard CPP to HDL translation with Bambu. If set to false, Bambu is not called.
+            cosim (bool, optional): Run RTL-Cosimulation of model on its testbench. Defaults to false.
+            validation (bool, optional): Checks for bitwise equality of csim and cosim results.
+            export (bool, optional): NotImplemented (will create exported IP in project directory)
+            vsynth (bool, optional): 
+                Optimize, Place, and Route synthesized design for any part that is supported by
+                Bambu. User will need the part downloaded in their Vivado installation.
+                Bambu requires cosim=True to run vsynth.
+            fifo_opt (bool, optional): NotImplemented (will optimize FIFO length based on RTL cosim)
+            log_to_stdout (bool, optional): Forward Bambu's ``stdout`` and ``stderr`` to system
             args (str | Sequence[str] | None): Arguments appended to default Bambu command for this model.
-            capture_output (bool): If ``True``, capture ``stdout``/``stderr`` and return them.
-            debug_IR (bool): If ``True``, keep intermediate files produced by Bambu and emit LLVM representation.
-            check (bool): If ``True``, raise ``CalledProcessError`` when the command fails.
-            dry_run (bool): If ``True``, return the resolved command without executing it.
             env (Mapping[str, str] | None): Environment overrides applied to the subprocess.
             run_kwargs (dict | None): Additional keyword arguments forwarded to ``subprocess.run``.
-            parse_report (bool): If ``True``, parse any ``bambu_results_*.xml`` files in the working directory.
 
         Returns:
-            dict: Execution metadata, containing ``command``, ``command_str``, ``cwd``,
-            ``returncode``, and any captured ``stdout``/``stderr``. When ``parse_report`` is enabled,
-            the parsed XML contents are returned under the ``report`` key.
+            dict:   
+                'command': list of tokens of Bambu command
+                'command_str': Bambu command string passed to shell
+                'cwd': current working directory
+                'returncode' (optional): return value of Bambu invocation
+                'report': parsed XML report generated by Bambu
+                'stdout' (optional): stdout of Bambu invocation
+                'stderr' (optional): stderr of Bambu invocation
+                'predictions_csim' (np.array(Float), optional):
+                    C Simulation array of testbench predictions
+                'predictions_cosim' (np.array(Float), optional): 
+                    RTL Cosimulation array of testbench predictions
+                'valid' (bool, optional): True if predictions_csim and predictions_cosim are bitwise-equal
 
-        Examples:
-            Basic usage with added args:
 
-                result = model.build(
-                    args=['--simulate', '--clock-period=5']
-                )
-
-            Capture output for inspection and emit LLVM representation:
-
-                result = model.build(
-                    args=['--simulate', '--print-dot'],
-                    capture_output=True,
-                    debug_IR=True
-                )
-                print(result['stdout'])
+        Example:
+            result = model.build(
+                csim=True,
+                cosim=True,
+                validation=True,
+                log_to_stdout=True
+                args='-v4 --seed=5' 
+            )
         """
 
         project_name = model.config.get_project_name()
@@ -353,79 +419,203 @@ class BambuBackend(FPGABackend):
                          os.path.join('firmware', f'{project_name}.cpp'), 
                          f'--top-fname={project_name}'
                         ]
-        REQ_ARGS      = ['-lm', 
-                         '-Ifirmware/ac_types',
-                        ]
-        DEBUG_IR_ARGS = ['--extra-gcc-options=-emit-llvm -S', 
-                           '--no-clean'
-                        ]
+        if os.environ.get('USE_BAMBU_AC_TYPES'):
+            REQ_ARGS = ['-lm',
+                        '--compiler=I386_CLANG16',
+                        '--generate-interface=INFER'
+                       ]
+        else:
+            REQ_ARGS = ['-lm', 
+                        '-Ifirmware/ac_types',
+                        '--compiler=I386_CLANG16',
+                        '--generate-interface=INFER'
+                       ]
+        CMD_ARGS      = []
+        
+        result = {}
+
+        ### CSIM ###
+        if csim:
+            self._build_testbench_exe(model)
+
+            # Execute testbench
+            ret = subprocess.run(
+                [f"./{project_name}-{model.config.get_config_value('Stamp')}_tb.exe"],
+                cwd=project_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            if ret.returncode != 0:
+                raise RuntimeError(
+                f'C++ testbench execution failed:\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
+            )
+            
+            # Store testbench results from log file
+            csim_results = os.path.join(project_dir, 'tb_data/csim_results.log')
+            Y_csim = np.loadtxt(csim_results)
+            result['predictions_csim'] = Y_csim
+
+        ### COSIM ###
+        if cosim:
+            if not synth:
+                raise ValueError("To run RTL cosimulation, C/RTL synthesis must be run.")
+            # --simulator=<SIMULATOR> will be selected by default by Bambu
+            CMD_ARGS += [f'--generate-tb={project_name}_test.cpp', '--simulate', '-DRTL_SIM']
+
+        ### VALIDATION ### (seems redundant, cause Bambu does validation already and fails if it fails)
+        if validation:
+            if not csim or not cosim:
+                raise ValueError("To validate C simulation & RTL simulation equality, csim and cosim must both be run.")
+
+        ### EXPORT ###
+        if export:
+            raise NotImplementedError() # TODO - Requires an ad-hoc .tcl script
+
+        ### VSYNTH ###
+        if vsynth:
+            if not synth:
+                raise ValueError("To synthesize for specific part, C/RTL synthesis must be run.")
+            if not cosim:
+                raise ValueError("To synthesize for specific part in Bambu, RTL cosimulation must be run.")
+
+            clock_period = model.config.get_config_value('ClockPeriod')
+            part_name = model.config.get_config_value('Part') # Bambu uses its own 'device name' which does NOT always coincide with part name
+            device_name = partname_to_bambudevicename.get(part_name, None)
+            if device_name is None:
+                warn(
+                    f"Part name {part_name} has no registered mapping to a Bambu --device-name. "
+                    f"Using '--device-name={part_name}'. "
+                    "(See valid Bambu device names by running Bambu with High Verbosity flag '-v4')"
+                )
+                device_name = part_name
+
+            CMD_ARGS += ['--evaluation', f'--device-name={device_name}', f'--clock-period={clock_period}']
+            
+
+        ### FIFO_OPT ### 
+        if fifo_opt:
+            raise NotImplementedError() # TODO - Requires an ad-hoc .tcl script
+
 
         # Build user's custom command with Bambu defaults
-        command_tokens = BASE_COMMAND + REQ_ARGS
-
+        command_tokens = BASE_COMMAND + REQ_ARGS + CMD_ARGS
         if args is not None:
             command_tokens += self._normalize_bambu_command(args)
-
-        if debug_IR:
-            command_tokens += DEBUG_IR_ARGS
-
         command_str = ' '.join(shlex.quote(str(token)) for token in command_tokens)
 
-        if dry_run:
-            return {
+        # Write formatted command to build_bambu.sh for later execution
+        script_path = os.path.join(project_dir, 'build_bambu.sh')
+        script_contents = f"""#!/bin/bash\nset -e\n{command_str}"""
+        with open(script_path, 'w') as f:
+            f.write(script_contents)
+        os.chmod(script_path, 0o755)
+
+
+        if not synth:
+            # "Dry run"
+            result.update({
                 'command': command_tokens,
                 'command_str': command_str,
                 'cwd': project_dir,
-                'dry_run': True,
-                'report': parse_bambu_report(project_dir) if parse_report else None,
-            }
+                'report': parse_bambu_report(project_dir),
+            })
+            return result
         else:
             self._ensure_bambu_available()
 
-        # Alter os runtime environment
-        run_env = os.environ.copy()
-        if env is not None:
-            if not hasattr(env, 'items'):
-                raise TypeError('env must be a mapping of environment variables.')
-            for key, value in env.items():
-                if value is None:
-                    run_env.pop(str(key), None)
-                else:
-                    run_env[str(key)] = str(value)
+            # Alter os runtime environment
+            run_env = os.environ.copy()
+            if env is not None:
+                if not hasattr(env, 'items'):
+                    raise TypeError('env must be a mapping of environment variables.')
+                for key, value in env.items():
+                    if value is None:
+                        run_env.pop(str(key), None)
+                    else:
+                        run_env[str(key)] = str(value)
 
-        # Add optional runtime keyword arguments to subprocess
-        if run_kwargs is None:
-            run_kwargs = {}
-        if not isinstance(run_kwargs, dict):
-            raise TypeError('run_kwargs must be a mapping')
-        if capture_output and any(stream in run_kwargs for stream in ('stdout', 'stderr')):
-            raise ValueError('Cannot set stdout/stderr in run_kwargs when capture_output=True.')
-        run_kwargs.setdefault('text', True)
-        if capture_output:
-            run_kwargs['capture_output'] = True
+            # Add optional runtime keyword arguments to subprocess
+            if run_kwargs is None:
+                run_kwargs = {}
+            if not isinstance(run_kwargs, dict):
+                raise TypeError('run_kwargs must be a mapping')
+            if log_to_stdout and any(stream in run_kwargs for stream in ('stdout', 'stderr')):
+                raise ValueError('Cannot set stdout/stderr in run_kwargs when log_to_stdout=True.')
+            run_kwargs.setdefault('stdout', subprocess.PIPE)
+            run_kwargs.setdefault('stderr', subprocess.PIPE)
+            run_kwargs.setdefault('text', True)
 
-        completed = subprocess.run(
-            command_tokens,
-            cwd=project_dir,
-            env=run_env,
-            check=check,
-            **run_kwargs,
+            # Run Bambu
+            ret = subprocess.run(
+                ['bash', 'build_bambu.sh'],
+                cwd=project_dir,
+                env=run_env,
+                **run_kwargs
+            )
+
+            if ret.returncode != 0:
+                raise RuntimeError(
+                f'Bambu failed:\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
+            )
+
+            report_data = parse_bambu_report(project_dir)
+
+            # Add main results
+            result.update({
+                'command': command_tokens,
+                'command_str': command_str,
+                'cwd': project_dir,
+                'stdout': ret.stdout,
+                'stderr': ret.stderr,
+                'returncode': ret.returncode,
+                'report': report_data
+            })
+            if log_to_stdout:
+                print(ret.stdout)
+                print(ret.stderr)
+
+            # Add cosim results
+            if cosim:
+                rtl_cosim_results = os.path.join(project_dir, 'tb_data/rtl_cosim_results.log')
+                Y_cosim = np.loadtxt(rtl_cosim_results)
+                result['predictions_cosim'] = Y_cosim
+
+            # Add validation results
+            if validation:
+                # Test for file equivalence (implies bitwise equivalence of results)
+                result['valid'] = filecmp.cmp(csim_results, rtl_cosim_results, shallow=False)
+
+            # Collect vsynth reports into /final_reports/
+            if vsynth:
+                try:
+                    project_path = Path(project_dir)
+                    src_root = project_path / "HLS_output" / "Synthesis" / "vivado_flow"
+                    dst_root = project_path / "final_reports"
+
+                    dst_root.mkdir(parents=True, exist_ok=True)
+
+                    for rpt_file in src_root.rglob("*.rpt"):
+                        shutil.copy2(rpt_file, dst_root / rpt_file.name)  # copy2 preserves metadata
+
+                except Exception as e:
+                    raise RuntimeError(f"Final report collection failed: {e}")
+
+            return result
+        
+    def _build_testbench_exe(self, model):
+        ret = subprocess.run(
+            ['bash', 'build_tb_exe.sh'],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=model.config.get_output_dir(),
         )
-
-        report_data = parse_bambu_report(project_dir) if parse_report else None
-
-        result = {
-            'command': command_tokens,
-            'command_str': command_str,
-            'cwd': project_dir,
-            'returncode': completed.returncode,
-            'report': report_data,
-        }
-        if capture_output:
-            result['stdout'] = completed.stdout
-            result['stderr'] = completed.stderr
-
-        return result
+        if ret.returncode != 0:
+            raise RuntimeError(
+                f'Failed to build testbench executable for "{model.config.get_project_name()}":\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
+            )
 
     @staticmethod
     def _ensure_bambu_available():

@@ -958,41 +958,13 @@ class BambuWriter(Writer):
         fout.close()
 
     def write_build_script(self, model):
-        """Write the TCL/Shell build scripts (project.tcl, build_prj.tcl, vivado_synth.tcl, build_lib.sh)
+        """Write the Shell build scripts (build_lib.sh, build_tb_exe.sh)
 
         Args:
             model (ModelGraph): the hls4ml model.
         """
 
         filedir = Path(__file__).parent
-
-        # project.tcl
-        prj_tcl_dst = Path(f'{model.config.get_output_dir()}/project.tcl')
-        with open(prj_tcl_dst, 'w') as f:
-            f.write('variable project_name\n')
-            f.write(f'set project_name "{model.config.get_project_name()}"\n')
-            f.write('variable backend\n')
-            f.write('set backend "bambu"\n')
-            f.write('variable part\n')
-            f.write('set part "{}"\n'.format(model.config.get_config_value('Part')))
-            f.write('variable clock_period\n')
-            f.write('set clock_period {}\n'.format(model.config.get_config_value('ClockPeriod')))
-            f.write('variable clock_uncertainty\n')
-            f.write('set clock_uncertainty {}\n'.format(model.config.get_config_value('ClockUncertainty', '12.5%')))
-            f.write('variable version\n')
-            f.write('set version "{}"\n'.format(model.config.get_config_value('Version', '1.0.0')))
-            f.write('variable maximum_size\n')
-            f.write('set maximum_size {}\n'.format(model.config.get_config_value('MaximumSize', '4096')))
-
-        # build_prj.tcl
-        srcpath = (filedir / '../templates/bambu/build_prj.tcl').resolve()
-        dstpath = f'{model.config.get_output_dir()}/build_prj.tcl'
-        copyfile(srcpath, dstpath)
-
-        # vivado_synth.tcl
-        srcpath = (filedir / '../templates/bambu/vivado_synth.tcl').resolve()
-        dstpath = f'{model.config.get_output_dir()}/vivado_synth.tcl'
-        copyfile(srcpath, dstpath)
 
         # build_lib.sh
         build_lib_src = (filedir / '../templates/bambu/build_lib.sh').resolve()
@@ -1004,6 +976,17 @@ class BambuWriter(Writer):
 
                 dst.write(line)
         build_lib_dst.chmod(build_lib_dst.stat().st_mode | stat.S_IEXEC)
+
+        # build_tb_exe.sh
+        build_tb_src = (filedir / '../templates/bambu/build_tb_exe.sh').resolve()
+        build_tb_dst = Path(f'{model.config.get_output_dir()}/build_tb_exe.sh').resolve()
+        with open(build_tb_src) as src, open(build_tb_dst, 'w') as dst:
+            for line in src.readlines():
+                line = line.replace('myproject', model.config.get_project_name())
+                line = line.replace('mystamp', model.config.get_config_value('Stamp'))
+
+                dst.write(line)
+        build_tb_dst.chmod(build_tb_dst.stat().st_mode | stat.S_IEXEC)
 
     def write_build_script_multigraph(self, model):
         """Write the build script (build_lib.sh) for stitched multigraph project
