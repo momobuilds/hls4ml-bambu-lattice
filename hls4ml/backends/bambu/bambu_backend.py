@@ -1,5 +1,6 @@
 import filecmp
 import os
+from pathlib import Path
 import shlex
 import shutil
 import subprocess
@@ -588,18 +589,18 @@ class BambuBackend(FPGABackend):
 
             # Collect vsynth reports into /final_reports/
             if vsynth:
-                ret = subprocess.run(
-                    ['bash', 'collect_reports.sh'],
-                    cwd=project_dir,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                )
+                try:
+                    project_path = Path(project_dir)
+                    src_root = project_path / "HLS_output" / "Synthesis" / "vivado_flow"
+                    dst_root = project_path / "final_reports"
 
-                if ret.returncode != 0:
-                    raise RuntimeError(
-                    f'Final report collection failed:\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
-                )
+                    dst_root.mkdir(parents=True, exist_ok=True)
+
+                    for rpt_file in src_root.rglob("*.rpt"):
+                        shutil.copy2(rpt_file, dst_root / rpt_file.name)  # copy2 preserves metadata
+
+                except Exception as e:
+                    raise RuntimeError(f"Final report collection failed: {e}")
 
             return result
         

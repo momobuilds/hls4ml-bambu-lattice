@@ -988,15 +988,6 @@ class BambuWriter(Writer):
                 dst.write(line)
         build_tb_dst.chmod(build_tb_dst.stat().st_mode | stat.S_IEXEC)
 
-        # collect_reports.sh
-        col_rpts_src = (filedir / '../templates/bambu/collect_reports.sh').resolve()
-        col_rpts_dst = Path(f'{model.config.get_output_dir()}/collect_reports.sh').resolve()
-        with open(col_rpts_src) as src, open(col_rpts_dst, 'w') as dst:
-            for line in src.readlines():
-                dst.write(line)
-        col_rpts_dst.chmod(col_rpts_dst.stat().st_mode | stat.S_IEXEC)
-
-
     def write_build_script_multigraph(self, model):
         """Write the build script (build_lib.sh) for stitched multigraph project
         Args:
