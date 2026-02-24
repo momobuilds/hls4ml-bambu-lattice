@@ -576,15 +576,30 @@ class BambuBackend(FPGABackend):
                 print(ret.stderr)
 
             # Add cosim results
-            if cosim == True:
+            if cosim:
                 rtl_cosim_results = os.path.join(project_dir, 'tb_data/rtl_cosim_results.log')
                 Y_cosim = np.loadtxt(rtl_cosim_results)
                 result['predictions_cosim'] = Y_cosim
 
             # Add validation results
-            if validation == True:
+            if validation:
                 # Test for file equivalence (implies bitwise equivalence of results)
                 result['valid'] = filecmp.cmp(csim_results, rtl_cosim_results, shallow=False)
+
+            # Collect vsynth reports into /final_reports/
+            if vsynth:
+                ret = subprocess.run(
+                    ['bash', 'collect_reports.sh'],
+                    cwd=project_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+
+                if ret.returncode != 0:
+                    raise RuntimeError(
+                    f'Final report collection failed:\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
+                )
 
             return result
         

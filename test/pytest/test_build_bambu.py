@@ -13,15 +13,15 @@ from tensorflow.keras.models import Sequential
 import hls4ml
 
 test_root_path = Path(__file__).parent
-proj_dir = test_root_path / 'hls4mlprj_build_bambu'
 
 # -----------------------------------------------------------------------------
 # fixtures
 # -----------------------------------------------------------------------------
 
 @pytest.fixture
-def hls_model_setup():
+def hls_model_setup(test_case_id):
     """Fixture to create basic HLS model for Bambu backend"""
+    proj_dir = test_root_path / test_case_id
     clean_proj_dir(proj_dir)
 
     model = Sequential()
@@ -335,11 +335,12 @@ def test_cosim(tmp_path, test_case_id):
     assert np.allclose(Y_bridge, Y_cosim, rtol=0, atol=1e-4)
 
 
-def test_validation_output(hls_model_setup):
+def test_validation_output(hls_model_setup, test_case_id):
     """Test that validation produces the two testbench output files and validates
     them correctly. This also tests csim and cosim, because validation does not run/
     is not valid without running both.
     """
+    proj_dir = test_root_path / test_case_id
     model = hls_model_setup
     result = model.build(csim=True, synth=True, cosim=True, validation=True)
 
