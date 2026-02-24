@@ -249,11 +249,11 @@ def test_bambu_missing_raises(hls_model_setup, monkeypatch):
         model.build()
 
 
-def test_csim(tmp_path):
+def test_csim(tmp_path, test_case_id):
     """Test that csim produces similar results to the
     CPP implementation of the HLS4ML model.
     """
-    csim_proj_dir = test_root_path / 'hls4mlprj_build_bambu_csim'
+    csim_proj_dir = test_root_path / test_case_id
 
     model = Sequential()
     model.add(Dense(5, input_shape=(16,), name='fc1', activation='relu'))
@@ -292,11 +292,11 @@ def test_csim(tmp_path):
     assert np.allclose(Y_bridge, Y_csim, rtol=0, atol=1e-4)
 
 
-def test_cosim(tmp_path):
+def test_cosim(tmp_path, test_case_id):
     """Test that cosim produces similar results to the
     CPP implementation of the HLS4ML model.
     """
-    cosim_proj_dir = test_root_path / 'hls4mlprj_build_bambu_cosim'
+    cosim_proj_dir = test_root_path / test_case_id
 
     model = Sequential()
     model.add(Dense(5, input_shape=(16,), name='fc1', activation='relu'))
@@ -358,16 +358,17 @@ def test_validation_output(hls_model_setup):
         assert result['valid'] == False
 
 
-def test_vsynth_output():
+def test_vsynth_output(test_case_id):
     """Test that a successful vsynth run produces the desired reports.
     Uses 7-Series Artix part "xc7a100tcsg324-1" to synthesize in Vivado.
     """
-    vsynth_proj_dir = test_root_path / 'hls4mlprj_build_bambu_vsynth'
+    vsynth_proj_dir = test_root_path / test_case_id
 
     # Create synthesizable HLS4ML model
     model = Sequential()
     model.add(Dense(5, input_shape=(16,), name='fc1', activation='relu'))
 
+    clean_proj_dir(vsynth_proj_dir)
     config = hls4ml.utils.config_from_keras_model(model, granularity='model')
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
