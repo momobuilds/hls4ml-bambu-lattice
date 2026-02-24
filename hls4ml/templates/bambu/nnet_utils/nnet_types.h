@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdio>
+/// include required to work around a cosimulation problem TOBEFIXED
 #include "ap_fixed.h"
 
 namespace nnet {
