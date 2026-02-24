@@ -107,7 +107,9 @@ def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
         #     f.write(bambu_output['stderr'])
         #     f.write('\n')
         #     f.write('====================\n')
-
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(vsynth=True)
+    
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
@@ -177,6 +179,8 @@ def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
         #     f.write(bambu_output['stderr'])
         #     f.write('\n')
         #     f.write('====================\n')
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(vsynth=True)
     
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
@@ -276,6 +280,8 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
         #     f.write(bambu_output['stderr'])
         #     f.write('\n')
         #     f.write('====================\n')
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(vsynth=True)
 
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
@@ -337,6 +343,8 @@ def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
             ],
             capture_output=False
         )
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(vsynth=True)
         # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
         #     f.write('=== BAMBU STDOUT ===\n')
         #     f.write(bambu_output['stdout'])
