@@ -79,12 +79,21 @@ template <class data_T, class res_T, typename CONFIG_T> void relu1(data_T data[C
     relu_max<data_T, res_T, 1, CONFIG_T>(data, res);
 }
 
+constexpr inline float exp_with_clamp_fcn_float(float input) {
+    // Keep constexpr table generation finite for large-magnitude inputs.
+    // Without this clamp, exp() can overflow to Inf and break ac_fixed conversion.
+    constexpr float max_exp_input = 80.0f;
+    constexpr float min_exp_input = -80.0f;
+    const float clamped_input = (input > max_exp_input) ? max_exp_input : ((input < min_exp_input) ? min_exp_input : input);
+    using gcem::exp;
+    return exp(clamped_input);
+}
+
 // *************************************************
 //       Sigmoid Activation
 // *************************************************
 constexpr inline float sigmoid_fcn_float(float input) {
-    using gcem::exp;
-    return 1.0 / (1 + exp(-input));
+    return 1.0 / (1 + exp_with_clamp_fcn_float(-input));
 }
 #ifdef OLD_SIGMOID
 template <typename CONFIG_T, int N_TABLE> void init_sigmoid_table(typename CONFIG_T::table_t table_out[N_TABLE]) {
@@ -162,8 +171,7 @@ void sigmoid(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in]) {
 enum class softmax_implementation { latency = 0, legacy = 1, stable = 2, argmax = 3 };
 
 constexpr inline float exp_fcn_float(float input) {
-    using gcem::exp;
-    return exp(input);
+    return exp_with_clamp_fcn_float(input);
 }
 
 template <class data_T, unsigned table_size> constexpr inline float softmax_real_val_from_idx(unsigned i) {
@@ -761,9 +769,8 @@ void thresholded_relu(data_T data[CONFIG_T::n_in], param_T theta, res_T res[CONF
 //       Softplus Activation
 // *************************************************
 constexpr inline float softplus_fcn_float(float input) {
-    using gcem::exp;
     using gcem::log;
-    return log(exp(input) + 1.);
+    return log(exp_with_clamp_fcn_float(input) + 1.);
 }
 
 #ifdef OLD_SOFTPLUS
@@ -915,8 +922,7 @@ void softsign(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in]) {
 //       ELU Activation
 // *************************************************
 constexpr inline float elu_fcn_float(float input) {
-    using gcem::exp;
-    return exp(input) - 1.;
+    return exp_with_clamp_fcn_float(input) - 1.;
 }
 
 #ifdef OLD_ELU
@@ -998,8 +1004,7 @@ template <class data_T, class res_T, typename CONFIG_T> void elu(data_T data[CON
 //       SELU Activation
 // *************************************************
 constexpr inline float selu_fcn_float(float input) {
-    using gcem::exp;
-    return 1.0507009873554804934193349852946 * (1.6732632423543772848170429916717 * (exp(input) - 1.));
+    return 1.0507009873554804934193349852946 * (1.6732632423543772848170429916717 * (exp_with_clamp_fcn_float(input) - 1.));
 }
 
 #ifdef OLD_SELU
