@@ -162,8 +162,13 @@ void sigmoid(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in]) {
 enum class softmax_implementation { latency = 0, legacy = 1, stable = 2, argmax = 3 };
 
 constexpr inline float exp_fcn_float(float input) {
+    // Keep constexpr table generation finite for large-magnitude inputs.
+    // Without this clamp, exp() can overflow to Inf and break ac_fixed conversion.
+    constexpr float max_exp_input = 80.0f;
+    constexpr float min_exp_input = -80.0f;
+    const float clamped_input = (input > max_exp_input) ? max_exp_input : ((input < min_exp_input) ? min_exp_input : input);
     using gcem::exp;
-    return exp(input);
+    return exp(clamped_input);
 }
 
 template <class data_T, unsigned table_size> constexpr inline float softmax_real_val_from_idx(unsigned i) {
