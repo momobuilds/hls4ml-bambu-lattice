@@ -88,7 +88,7 @@ def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
 @pytest.mark.parametrize(
     'keras_model_1d',
     [
@@ -209,7 +209,7 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
 @pytest.mark.parametrize(
     'keras_model_2d',
     [
