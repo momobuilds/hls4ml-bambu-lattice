@@ -7,7 +7,6 @@
 /// include required to work around a cosimulation problem TOBEFIXED
 #include "ap_fixed.h"
 
-
 namespace nnet {
 
 // Fixed-size array
