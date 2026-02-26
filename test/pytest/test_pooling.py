@@ -61,60 +61,34 @@ def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
         model, default_precision='ap_fixed<32,9>', granularity='name', backend=backend
     )
 
-    y_keras = model.predict(data_1d)
-
-    other_args = {}
-
-    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
-
-    if backend == 'Bambu':
-        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
-        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
-        np.save(input_data_tb, data_1d)
-        np.save(output_data_tb, y_keras)
-        other_args['input_data_tb'] = str(input_data_tb)
-        other_args['output_data_tb'] = str(output_data_tb)
-
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
         io_type=io_type,
         output_dir=str(test_root_path / test_case_id),
         backend=backend,
-        **other_args,
     )
     hls_model.compile()
 
-    if backend == 'Bambu':
-        tb_file = f'{hls_model.config.get_project_name()}_test.cpp'
-        bambu_output = hls_model.build(
-            check=True,
-            args=[
-                f'--generate-tb={tb_file}',
-                '--simulate',
-                '--evaluation',
-                '--generate-interface=INFER',
-                '--compiler=I386_CLANG16'
-            ],
-            capture_output=False
-        )
-        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
-        #     f.write('=== BAMBU STDOUT ===\n')
-        #     f.write(bambu_output['stdout'])
-        #     f.write('\n')
-        #     f.write('====================\n')
-        #     f.write('=== BAMBU STDERR ===\n')
-        #     f.write(bambu_output['stderr'])
-        #     f.write('\n')
-        #     f.write('====================\n')
     if backend in ['Vivado', 'Vitis']:
-        hls_model.build(vsynth=True)
-    
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
+    if backend == 'Bambu':
+        hls_model.build(
+        cosim=True,
+        vsynth=True  # Adds --evaluation which triggers XML generation
+        )
+
+    y_keras = model.predict(data_1d)
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
 @pytest.mark.parametrize(
     'keras_model_1d',
     [
@@ -133,55 +107,29 @@ def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
 
     config = hls4ml.utils.config_from_keras_model(model, default_precision='ap_fixed<32,9>', granularity='name')
 
-    y_keras = model.predict(data_1d)
-
-    other_args = {}
-
-    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
-
-    if backend == 'Bambu':
-        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
-        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
-        np.save(input_data_tb, data_1d)
-        np.save(output_data_tb, y_keras)
-        other_args['input_data_tb'] = str(input_data_tb)
-        other_args['output_data_tb'] = str(output_data_tb)
-
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
         io_type=io_type,
         output_dir=str(test_root_path / test_case_id),
         backend=backend,
-        **other_args
     )
     hls_model.compile()
 
-    if backend == 'Bambu':
-        tb_file = f'{hls_model.config.get_project_name()}_test.cpp'
-        bambu_output = hls_model.build(
-            check=True,
-            args=[
-                f'--generate-tb={tb_file}',
-                '--simulate',
-                '--evaluation',
-                '--generate-interface=INFER',
-                '--compiler=I386_CLANG16'
-            ],
-            capture_output=False
-        )
-        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
-        #     f.write('=== BAMBU STDOUT ===\n')
-        #     f.write(bambu_output['stdout'])
-        #     f.write('\n')
-        #     f.write('====================\n')
-        #     f.write('=== BAMBU STDERR ===\n')
-        #     f.write(bambu_output['stderr'])
-        #     f.write('\n')
-        #     f.write('====================\n')
     if backend in ['Vivado', 'Vitis']:
-        hls_model.build(vsynth=True)
-    
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
+    if backend == 'Bambu':
+        hls_model.build(
+        cosim=True,
+        vsynth=True  # Adds --evaluation which triggers XML generation
+        )
+
+    y_keras = model.predict(data_1d)
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
@@ -234,60 +182,34 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
         model, default_precision='ap_fixed<32,9>', granularity='name', backend=backend
     )
 
-    y_keras = model.predict(data_2d)
-
-    other_args = {}
-
-    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
-
-    if backend == 'Bambu':
-        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
-        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
-        np.save(input_data_tb, data_2d)
-        np.save(output_data_tb, y_keras)
-        other_args['input_data_tb'] = str(input_data_tb)
-        other_args['output_data_tb'] = str(output_data_tb)
-
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
         io_type=io_type,
         output_dir=str(test_root_path / test_case_id),
         backend=backend,
-        **other_args,
     )
     hls_model.compile()
 
-    if backend == 'Bambu':
-        tb_file = f'{hls_model.config.get_project_name()}_test.cpp'
-        bambu_output = hls_model.build(
-            check=True,
-            args=[
-                f'--generate-tb={tb_file}',
-                '--simulate',
-                '--evaluation',
-                '--generate-interface=INFER',
-                '--compiler=I386_CLANG16'
-            ],
-            capture_output=False
-        )
-        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
-        #     f.write('=== BAMBU STDOUT ===\n')
-        #     f.write(bambu_output['stdout'])
-        #     f.write('\n')
-        #     f.write('====================\n')
-        #     f.write('=== BAMBU STDERR ===\n')
-        #     f.write(bambu_output['stderr'])
-        #     f.write('\n')
-        #     f.write('====================\n')
     if backend in ['Vivado', 'Vitis']:
-        hls_model.build(vsynth=True)
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
+    if backend == 'Bambu':
+        hls_model.build(
+        cosim=True,
+        vsynth=True  # Adds --evaluation which triggers XML generation
+        )
 
+    y_keras = model.predict(data_2d)
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
 @pytest.mark.parametrize(
     'keras_model_2d',
     [
@@ -306,53 +228,27 @@ def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
 
     config = hls4ml.utils.config_from_keras_model(model, default_precision='ap_fixed<32,9>', granularity='name')
 
-    y_keras = model.predict(data_2d)
-
-    other_args = {}
-
-    (test_root_path / test_case_id).mkdir(parents=True, exist_ok=True)
-
-    if backend == 'Bambu':
-        input_data_tb = test_root_path / test_case_id / f'tb_input.npy'
-        output_data_tb = test_root_path / test_case_id / f'tb_output.npy'
-        np.save(input_data_tb, data_2d)
-        np.save(output_data_tb, y_keras)
-        other_args['input_data_tb'] = str(input_data_tb)
-        other_args['output_data_tb'] = str(output_data_tb)
-    
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
         io_type=io_type,
         output_dir=str(test_root_path / test_case_id),
         backend=backend,
-        **other_args,
     )
     hls_model.compile()
 
-    if backend == 'Bambu':
-        tb_file = f'{hls_model.config.get_project_name()}_test.cpp'
-        bambu_output = hls_model.build(
-            check=True,
-            args=[
-                f'--generate-tb={tb_file}',
-                '--simulate',
-                '--evaluation',
-                '--generate-interface=INFER',
-                '--compiler=I386_CLANG16'
-            ],
-            capture_output=False
-        )
     if backend in ['Vivado', 'Vitis']:
-        hls_model.build(vsynth=True)
-        # with open(str(test_root_path / test_case_id / 'Bambu_output.txt'), 'w') as f:
-        #     f.write('=== BAMBU STDOUT ===\n')
-        #     f.write(bambu_output['stdout'])
-        #     f.write('\n')
-        #     f.write('====================\n')
-        #     f.write('=== BAMBU STDERR ===\n')
-        #     f.write(bambu_output['stderr'])
-        #     f.write('\n')
-
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
+    if backend == 'Bambu':
+        hls_model.build(
+            cosim=True,
+            vsynth=True  # Adds --evaluation which triggers XML generation
+        )
+    y_keras = model  .predict(data_2d)
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
