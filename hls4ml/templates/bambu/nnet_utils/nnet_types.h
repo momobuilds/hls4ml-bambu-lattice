@@ -7,7 +7,6 @@
 /// include required to work around a cosimulation problem TOBEFIXED
 #include "ap_fixed.h"
 
-#include "ap_int.h"
 
 namespace nnet {
 
