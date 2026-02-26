@@ -249,6 +249,6 @@ def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
             cosim=True,
             vsynth=True  # Adds --evaluation which triggers XML generation
         )
-    y_keras = model  .predict(data_2d)
+    y_keras = model.predict(data_2d)
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
