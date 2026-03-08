@@ -50,13 +50,13 @@ from hls4ml.utils import attribute_descriptions as descriptions
 from hls4ml.utils.einsum_utils import parse_einsum
 
 
-partname_to_bambudevicename = {
+partname_to_bambu = {
     # Intel/Altera
-    "5CSEMA5F31C6" : "5CSEMA5F31C6",
-    "5SGXEA7N2F45C1" : "5SGXEA7N2F45C1",
-    "EP2C70F896C6" : "EP2C70F896C6",
-    "EP2C70F896C6-R" : "EP2C70F896C6",
-    "EP4SGX530KH40C2" : "EP4SGX530KH40C2",
+    "5CSEMA5F31C6"      : {"device_name" : "5CSEMA5F31C6", "family" : "Intel/Altera"},
+    "5SGXEA7N2F45C1"    : {"device_name" : "5SGXEA7N2F45C1", "family" : "Intel/Altera"},
+    "EP2C70F896C6"      : {"device_name" : "EP2C70F896C6", "family" : "Intel/Altera"},
+    "EP2C70F896C6-R"    : {"device_name" : "EP2C70F896C6-R", "family" : "Intel/Altera"},
+    "EP4SGX530KH40C2"   : {"device_name" : "EP4SGX530KH40C2", "family" : "Intel/Altera"},
     # : "LFE335EA8FN484C",
     # : "LFE5U85F8BG756C", 
     # : "LFE5UM85F8BG756C", 
@@ -69,10 +69,10 @@ partname_to_bambudevicename = {
     # Standard cells / tech libraries 
     # : "nangate45", 
 
-    # NaNGate / Nextgrids
+    # NaNGate/Nextgrids
     # : "nx1h140tsp",
     # : "nx1h35S",
-    "nx2h540tsc" : "nx2h540tsc", 
+    "nx2h540tsc" : {"device_name" : "nx2h540tsc", "family" : "NaNGate/Nextgrids"}, 
 
     # Xilinx legacy
     # : "xc4vlx100-10ff1513", 
@@ -82,7 +82,7 @@ partname_to_bambudevicename = {
     # : "xc6vlx240t-1ff1156", 
 
     # 7-series
-    "xc7a100tcsg324-1" : "xc7a100t-1csg324-VVD",  # 7-series Artix! confirmed working, using as default for now
+    "xc7a100tcsg324-1" : {"device_name" : "xc7a100t-1csg324-VVD", "family" : "Xilinx"}, # 7-series Artix! vsynth confirmed working, using as default for now
     # : "xc7vx330t-1ffg1157",
     # : "xc7vx485t-2ffg1761-VVD",
     # : "xc7vx690t-3ffg1930-VVD", 
@@ -94,7 +94,7 @@ partname_to_bambudevicename = {
     # UltraScale / UltraScale+
     # : "xcku060-3ffva1156-VVD", 
     # : "xcu280-2Lfsvh2892-VVD", 
-    "xcu55c-fsvh2892-2L-e" : "xcu55c-2Lfsvh2892-VVD",
+    "xcu55c-fsvh2892-2L-e" : {"device_name" : "xcu55c-2Lfsvh2892-VVD", "family" : "Xilinx"}
 }
 
 
@@ -333,7 +333,8 @@ class BambuBackend(FPGABackend):
         """
         config = {}
 
-        config['Part'] = part if part is not None else 'xc7a100tcsg324-1'
+        partname = part if part is not None else 'xc7a100tcsg324-1'
+        config['Part'] = partname
         config['ClockPeriod'] = clock_period if clock_period is not None else 5
         config['ClockUncertainty'] = clock_uncertainty if clock_uncertainty is not None else '12.5%'
         config['IOType'] = io_type if io_type is not None else 'io_parallel'
@@ -344,6 +345,8 @@ class BambuBackend(FPGABackend):
             'WriteTar': write_tar,
             'TBOutputStream': tb_output_stream,
         }
+        if partname in partname_to_bambu.keys():
+            config['FPGAFamily'] = partname_to_bambu[partname]['family']
 
         return config
 
@@ -369,7 +372,7 @@ class BambuBackend(FPGABackend):
 
         Args:
             model (ModelGraph): Model to be built with Bambu.
-            reset (bool, optional): Does nothing, only in signature for compatability with VitisBackend.
+            reset (bool, optional): If true, deletes Bambu-generated artifacts if they are present.
             csim (bool, optional): Run C-Simulation of model on its testbench. Defaults to false.
             synth (bool, optional): Standard CPP to HDL translation with Bambu. If set to false, Bambu is not called.
             cosim (bool, optional): Run RTL-Cosimulation of model on its testbench. Defaults to false.
@@ -387,13 +390,20 @@ class BambuBackend(FPGABackend):
 
         Returns:
             dict:
-                'report': parsed Bambu report payload
-                'predictions_csim' (np.array(Float), optional):
+                'CSimResults' (np.array(float), optional):
                     C Simulation array of testbench predictions
-                'predictions_cosim' (np.array(Float), optional):
+                'CosimResults' (np.array(float), optional):
                     RTL Cosimulation array of testbench predictions
-                'valid' (bool, optional): True if predictions_csim and predictions_cosim are bitwise-equal
-
+                'Valid' (bool, optional): 
+                    True if CSimResults and CosimResults are bitwise-equal
+                'BambuMetrics' (dict, optional):
+                    Metrics returned by Bambu's evaluation
+                'ImplementationReport' (dict, optional):
+                    Parsed metrics from post-route utilization report
+                'TimingReport' (dict, optional):
+                    Parsed metrics from post-route timing summary report
+                'PowerReport' (dict, optional):
+                    Parsed metrics from post-route power report
 
         Example:
             result = model.build(
@@ -407,6 +417,7 @@ class BambuBackend(FPGABackend):
 
         project_name = model.config.get_project_name()
         project_dir = model.config.get_output_dir()
+        part_family = model.config.get_config_value("FPGAFamily")
 
         # Bambu-specific command/flags
         BASE_COMMAND  = ['bambu', 
@@ -427,6 +438,27 @@ class BambuBackend(FPGABackend):
         CMD_ARGS      = []
         
         result = {}
+
+        ### RESET ###
+        bambu_output_patterns = [
+            f"*{project_name}*.cache", f"*{project_name}*.hw", f"*{project_name}*.ip_user_files", 
+            ".Xil", "vivado_reports", "HLS_output", f"*{project_name}*.xpr", "bambu_results_*.xml", 
+            "clockInfo.txt", f"{project_name}-*_tb.exe", f"{project_name}.v", "results.txt",
+            "simulate*.sh", "synthesize*.sh"            
+            ]
+        matches = [p for pat in bambu_output_patterns for p in Path(project_dir).glob(pat)]
+        is_dirty_directory = any(matches)
+        if reset:
+            if is_dirty_directory:
+                for p in matches:
+                    if p.is_file() or p.is_symlink():
+                        p.unlink(missing_ok=True)
+                    elif p.is_dir():
+                        shutil.rmtree(p, ignore_errors=True)
+                    print(f"Removed: {p}")
+        else:
+            if is_dirty_directory:
+                warn("WARNING: Bambu is being rerun on a directory instead of running on a fresh directory (not recommended).")
 
         ### CSIM ###
         if csim:
@@ -449,7 +481,7 @@ class BambuBackend(FPGABackend):
             # Store testbench results from log file
             csim_results = os.path.join(project_dir, 'tb_data/csim_results.log')
             Y_csim = np.loadtxt(csim_results)
-            result['predictions_csim'] = Y_csim
+            result['CSimResults'] = Y_csim
 
         ### COSIM ###
         if cosim:
@@ -476,10 +508,10 @@ class BambuBackend(FPGABackend):
 
             clock_period = model.config.get_config_value('ClockPeriod')
             part_name = model.config.get_config_value('Part') # Bambu uses its own 'device name' which does NOT always coincide with part name
-            device_name = partname_to_bambudevicename.get(part_name, None)
+            device_name = partname_to_bambu.get(part_name, {}).get("device_name", None)
             if device_name is None:
                 warn(
-                    f"Part name {part_name} has no registered mapping to a Bambu --device-name. "
+                    f"WARNING: Part name {part_name} has no registered mapping to a Bambu --device-name. "
                     f"Using '--device-name={part_name}'. "
                     "(See valid Bambu device names by running Bambu with High Verbosity flag '-v4')"
                 )
@@ -487,7 +519,6 @@ class BambuBackend(FPGABackend):
 
             CMD_ARGS += ['--evaluation', f'--device-name={device_name}', f'--clock-period={clock_period}']
             
-
         ### FIFO_OPT ### 
         if fifo_opt:
             raise NotImplementedError() # TODO - Requires an ad-hoc .tcl script
@@ -501,15 +532,16 @@ class BambuBackend(FPGABackend):
 
         # Write formatted command to build_bambu.sh for later execution
         script_path = os.path.join(project_dir, 'build_bambu.sh')
-        script_contents = f"""#!/bin/bash\nset -e\n{command_str}"""
-        with open(script_path, 'w') as f:
-            f.write(script_contents)
-        os.chmod(script_path, 0o755)
+        with open(script_path) as f:
+            content = f.read()
+        content = content.replace("insert_bambu_command", command_str)
+        with open(script_path, "w") as f:
+            f.write(content)
 
 
         if not synth:
             # "Dry run"
-            result['report'] = parse_bambu_report(project_dir)
+            result.update(parse_bambu_report(project_dir, part_family))
             return result
         else:
             self._ensure_bambu_available()
@@ -572,39 +604,19 @@ class BambuBackend(FPGABackend):
                 if stderr_target is not None and stderr_target is not subprocess.PIPE:
                     stderr_target.close()
 
-
-            report_data = parse_bambu_report(project_dir)
-
             # Add main results
-            result['report'] = report_data
+            result.update(parse_bambu_report(project_dir, part_family))
 
             # Add cosim results
             if cosim:
                 rtl_cosim_results = os.path.join(project_dir, 'tb_data/rtl_cosim_results.log')
                 Y_cosim = np.loadtxt(rtl_cosim_results)
-                result['predictions_cosim'] = Y_cosim
+                result['CosimResults'] = Y_cosim
 
             # Add validation results
             if validation:
                 # Test for file equivalence (implies bitwise equivalence of results)
-                result['valid'] = filecmp.cmp(csim_results, rtl_cosim_results, shallow=False)
-
-            # Collect vsynth reports into /final_reports/
-            if vsynth:
-                try:
-                    project_path = Path(project_dir)
-                    src_root = project_path / "HLS_output" / "Synthesis" / "vivado_flow"
-                    dst_root = project_path / "final_reports"
-
-                    dst_root.mkdir(parents=True, exist_ok=True)
-
-                    for report_file in src_root.rglob("*"):
-                        if report_file.suffix.lower() not in {".rpt", ".xml"}:
-                            continue
-                        shutil.copy2(report_file, dst_root / report_file.name)  # copy2 preserves metadata
-
-                except Exception as e:
-                    raise RuntimeError(f"Final report collection failed: {e}")
+                result['Valid'] = filecmp.cmp(csim_results, rtl_cosim_results, shallow=False)
 
             return result
         

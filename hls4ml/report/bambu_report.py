@@ -1,6 +1,7 @@
 import glob
 import os
 import xml.etree.ElementTree as ET
+from hls4ml.report.vivado_report import _parse_power_report, _parse_implementation_report, _parse_timing_report
 
 
 def _coerce_value(raw):
@@ -34,16 +35,40 @@ def _parse_result_file(path):
     return {'meta': meta, 'metrics': metrics}
 
 
-def parse_bambu_report(hls_dir):
+def parse_bambu_report(hls_dir, part_family):
     """Parse bambu_results XML files from ``hls_dir``.
+    If target is from Xilinx, parse Vivado reports.
+    Must be extended to parse reports from differing manufacturers.
 
-    Returns a dictionary with the parsed entries or ``None`` if no file exists.
+    Returns a dictionary with the parsed entries.
     """
+    result = {}
 
+    # Parse metrics reported by Bambu
     pattern = os.path.join(hls_dir, 'bambu_results*.xml')
     matches = sorted(glob.glob(pattern))
-    if not matches:
-        return None
+    if matches:
+        parsed = [_parse_result_file(path) for path in matches]
+        result.update({'BambuMetrics': parsed[-1]['metrics']})
 
-    parsed = [_parse_result_file(path) for path in matches]
-    return {'results': parsed, 'latest': parsed[-1]}
+    # Parse Vivado reports if target is from Xilinx
+    if part_family == "Xilinx":
+        implementation_report = _parse_implementation_report(hls_dir, is_vivado_accelerator=False, percentage_columns=False)
+        if implementation_report is not None:
+            result['ImplementationReport'] = implementation_report
+        else:
+            print('Implementation report not found.')
+
+        timing_report = _parse_timing_report(hls_dir, is_vivado_accelerator=False)
+        if timing_report is not None:
+            result['TimingReport'] = timing_report
+        else:
+            print('Timing report not found.')
+
+        power_report = _parse_power_report(hls_dir, is_vivado_accelerator=False)
+        if power_report is not None:
+            result['PowerReport'] = power_report
+        else:
+            print('Power report not found.')
+
+    return result
