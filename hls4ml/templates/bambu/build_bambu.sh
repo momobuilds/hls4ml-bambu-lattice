@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-insert_bambu_command
+<insert_bambu_command>
 
 # copy final reports
 src_root="HLS_output/Synthesis/vivado_flow"
