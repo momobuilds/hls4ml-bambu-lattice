@@ -527,7 +527,7 @@ class BambuBackend(FPGABackend):
         script_path = os.path.join(project_dir, 'build_bambu.sh')
         with open(script_path) as f:
             content = f.read()
-        content = content.replace("insert_bambu_command", command_str)
+        content = content.replace("<insert_bambu_command>", command_str)
         with open(script_path, "w") as f:
             f.write(content)
 
