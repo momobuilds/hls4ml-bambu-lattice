@@ -319,7 +319,7 @@ def _parse_transaction_file(sln_dir, solution, rtl, top_func_name):
     }
 
 
-def _parse_implementation_report(hls_dir, is_vivado_accelerator):
+def _parse_implementation_report(hls_dir, is_vivado_accelerator, percentage_columns=True):
     """Parse post-route utilization report."""
     util_rpt_path = 'util_rpt_system' if is_vivado_accelerator else 'util_rpt_vivado'
     post_route_util_file = _path(util_rpt_path, hls_dir=hls_dir)
@@ -329,29 +329,39 @@ def _parse_implementation_report(hls_dir, is_vivado_accelerator):
     with open(post_route_util_file) as f:
         for line in f.readlines():
             if re.search(r'\(top\)', line):
-                results = [_get_abs_and_percentage_values(elem) for elem in line.replace('|', '').split()[UTIL_SKIP_CELLS:]]
+                if percentage_columns:
+                    results = [_get_abs_and_percentage_values(elem) for elem in line.replace('|', '').split()[UTIL_SKIP_CELLS:]]
+                else:
+                    results = [(int(elem), 0.0) for elem in line.replace('|', '').split()[UTIL_SKIP_CELLS:]]
                 implementation_report['TotLUTs'] = results[UTIL_COL_TOTLUTS][0]
-                implementation_report['TotLUTs%'] = results[UTIL_COL_TOTLUTS][1]
                 implementation_report['LogicLUTs'] = results[UTIL_COL_LOGICLUTS][0]
-                implementation_report['LogicLUTs%'] = results[UTIL_COL_LOGICLUTS][1]
                 implementation_report['LUTRAMs'] = results[UTIL_COL_LUTRAMS][0]
-                implementation_report['LUTRAMs%'] = results[UTIL_COL_LUTRAMS][1]
                 implementation_report['SRLs'] = results[UTIL_COL_SRLS][0]
-                implementation_report['SRLs%'] = results[UTIL_COL_SRLS][1]
                 implementation_report['FFs'] = results[UTIL_COL_FFS][0]
-                implementation_report['FFs%'] = results[UTIL_COL_FFS][1]
                 implementation_report['RAMB36s'] = results[UTIL_COL_RAMB36][0]
-                implementation_report['RAMB36s%'] = results[UTIL_COL_RAMB36][1]
                 implementation_report['RAMB18s'] = results[UTIL_COL_RAMB18][0]
-                implementation_report['RAMB18s%'] = results[UTIL_COL_RAMB18][1]
+                
+                if percentage_columns:
+                    implementation_report['TotLUTs%'] = results[UTIL_COL_TOTLUTS][1]
+                    implementation_report['LogicLUTs%'] = results[UTIL_COL_LOGICLUTS][1]
+                    implementation_report['LUTRAMs%'] = results[UTIL_COL_LUTRAMS][1]
+                    implementation_report['SRLs%'] = results[UTIL_COL_SRLS][1]
+                    implementation_report['FFs%'] = results[UTIL_COL_FFS][1]
+                    implementation_report['RAMB36s%'] = results[UTIL_COL_RAMB36][1]
+                    implementation_report['RAMB18s%'] = results[UTIL_COL_RAMB18][1]
+
                 if len(results) == UTIL_COLS_WITH_URAM:
                     implementation_report['URAMs'] = results[UTIL_COL_URAM][0]
-                    implementation_report['URAMs%'] = results[UTIL_COL_URAM][1]
                     implementation_report['DSPs'] = results[UTIL_COL_DSP][0]
-                    implementation_report['DSPs%'] = results[UTIL_COL_DSP][1]
+
+                    if percentage_columns:
+                        implementation_report['URAMs%'] = results[UTIL_COL_URAM][1]
+                        implementation_report['DSPs%'] = results[UTIL_COL_DSP][1]
                 else:
                     implementation_report['DSPs'] = results[UTIL_COL_DSP - 1][0]
-                    implementation_report['DSPs%'] = results[UTIL_COL_DSP - 1][1]
+
+                    if percentage_columns:
+                        implementation_report['DSPs%'] = results[UTIL_COL_DSP - 1][1]
                 break
     return implementation_report if implementation_report else None
 
