@@ -72,7 +72,7 @@ partname_to_bambu = {
     # NaNGate/Nextgrids
     # : "nx1h140tsp",
     # : "nx1h35S",
-    "nx2h540tsc" : {"device_name" : "nx2h540tsc", "family" : "NaNGate/Nextgrids"}, 
+    "nx2h540tsc" : {"device_name" : "nx2h540tsc", "family" : "NanoXplore"}, 
 
     # Xilinx legacy
     # : "xc4vlx100-10ff1513", 
