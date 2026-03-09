@@ -1,7 +1,7 @@
 import glob
 import os
 import xml.etree.ElementTree as ET
-from hls4ml.report.vivado_report import _parse_power_report, _parse_implementation_report, _parse_timing_report
+from hls4ml.report.vivado_report import _parse_power_report, _parse_implementation_report, _parse_timing_report, _parse_csim_results, _parse_rtl_cosim_results
 
 
 def _coerce_value(raw):
@@ -44,12 +44,21 @@ def parse_bambu_report(hls_dir, part_family):
     """
     result = {}
 
+    # Parse CSim and Cosim
+    csim_results = _parse_csim_results(hls_dir)
+    if csim_results is not None:
+        result['CSimResults'] = csim_results
+
+    cosim_results = _parse_rtl_cosim_results(hls_dir)
+    if cosim_results is not None:
+        result['CosimResults'] = cosim_results
+
     # Parse metrics reported by Bambu
     pattern = os.path.join(hls_dir, 'bambu_results*.xml')
     matches = sorted(glob.glob(pattern))
     if matches:
         parsed = [_parse_result_file(path) for path in matches]
-        result.update({'BambuMetrics': parsed[-1]['metrics']})
+        result['BambuMetrics'] = parsed[-1]['metrics']
 
     # Parse Vivado reports if target is from Xilinx
     if part_family == "Xilinx":

@@ -22,7 +22,7 @@ def simple_model():
     model.add(Dense(3, input_shape=(2,)))
     return model
 
-def count_ext_files(directory, extension):
+def count_files_with_extension(directory, extension):
     """Counts how many files in the directory and all its
     subdirectories have files that end with extension"""
     return sum(1 for _ in Path(directory).rglob(f"*{extension}"))
@@ -123,7 +123,43 @@ def test_cosimulation(test_case_id, simple_model, tmp_path, io_type, strategy, g
     assert np.allclose(bridge_result, cosim_result, rtol=0.0, atol=1e-4)
 
 
-def test_vsynth_output(test_case_id, simple_model):
+@pytest.mark.parametrize('io_type', ['io_parallel'])
+@pytest.mark.parametrize('strategy', ['latency'])
+@pytest.mark.parametrize('granularity', ['name'])
+@pytest.mark.parametrize('backend', ['Vitis', 'Bambu'])
+def test_synth(test_case_id, simple_model, io_type, strategy, granularity, backend):
+    """Test that a successful synth run produces the desired artifacts (.v file)"""
+    synth_proj_dir = test_root_path / test_case_id
+
+    model = simple_model
+
+    config = hls4ml.utils.config_from_keras_model(model, granularity=granularity)
+    config['Model']['Strategy'] = strategy
+
+    hls_model = hls4ml.converters.convert_from_keras_model(
+        model,
+        hls_config=config,
+        output_dir=str(synth_proj_dir),
+        io_type=io_type,
+        backend=backend,
+    )
+    hls_model.build(synth=True)
+
+    # Bambu-specific artifact checks
+    if backend == 'Bambu':
+        # Ensure we get bambu results file
+        proj_name = hls_model.config.get_project_name()
+        assert Path(synth_proj_dir, f'{proj_name}.v').exists()
+
+
+    # TODO: Vitis-specific artifact checks
+
+
+@pytest.mark.parametrize('io_type', ['io_parallel'])
+@pytest.mark.parametrize('strategy', ['latency'])
+@pytest.mark.parametrize('granularity', ['name'])
+@pytest.mark.parametrize('backend', ['Vitis', 'Bambu'])
+def test_vsynth(test_case_id, simple_model, io_type, strategy, granularity, backend):
     """Test that a successful vsynth run produces the desired reports.
     Uses 7-Series Artix part "xc7a100tcsg324-1" to synthesize in Vivado.
     """
@@ -131,21 +167,27 @@ def test_vsynth_output(test_case_id, simple_model):
 
     model = simple_model
 
-    config = hls4ml.utils.config_from_keras_model(model, granularity='model')
+    config = hls4ml.utils.config_from_keras_model(model, granularity=granularity)
+    config['Model']['Strategy'] = strategy
+
     hls_model = hls4ml.converters.convert_from_keras_model(
         model,
         hls_config=config,
         output_dir=str(vsynth_proj_dir),
-        backend="Bambu",
-        clock_period=10,
+        io_type=io_type,
+        backend=backend,
         part_name='xc7a100tcsg324-1'
     )
     hls_model.build(synth=True, cosim=True, vsynth=True)
 
-    # Ensure we get bambu results file
-    assert sum(1 for _ in vsynth_proj_dir.rglob("bambu_results_*.xml")) >= 1
+    # Bambu-specific artifact checks
+    if backend == 'Bambu':
+        # Ensure we get bambu results file
+        assert sum(1 for _ in vsynth_proj_dir.rglob("bambu_results_*.xml")) >= 1
 
-    # Ensure we get expected reports
-    num_reports = count_ext_files(vsynth_proj_dir / 'HLS_output', '.rpt')
-    assert num_reports >= 15
+        # Ensure we get expected reports
+        num_reports = count_files_with_extension(vsynth_proj_dir / 'HLS_output', '.rpt')
+        assert num_reports >= 15
+
+    # TODO: Vitis-specific artifact checks
 

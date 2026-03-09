@@ -355,7 +355,7 @@ class BambuBackend(FPGABackend):
         model,
         *,
         reset=False,
-        csim=False,
+        csim=True,
         synth=True,
         cosim=False,
         validation=False,
@@ -373,7 +373,7 @@ class BambuBackend(FPGABackend):
         Args:
             model (ModelGraph): Model to be built with Bambu.
             reset (bool, optional): If true, deletes Bambu-generated artifacts if they are present.
-            csim (bool, optional): Run C-Simulation of model on its testbench. Defaults to false.
+            csim (bool, optional): Run C-Simulation of model on its testbench. Defaults to True.
             synth (bool, optional): Standard CPP to HDL translation with Bambu. If set to false, Bambu is not called.
             cosim (bool, optional): Run RTL-Cosimulation of model on its testbench. Defaults to false.
             validation (bool, optional): Checks for bitwise equality of csim and cosim results.
@@ -394,8 +394,6 @@ class BambuBackend(FPGABackend):
                     C Simulation array of testbench predictions
                 'CosimResults' (np.array(float), optional):
                     RTL Cosimulation array of testbench predictions
-                'Valid' (bool, optional): 
-                    True if CSimResults and CosimResults are bitwise-equal
                 'BambuMetrics' (dict, optional):
                     Metrics returned by Bambu's evaluation
                 'ImplementationReport' (dict, optional):
@@ -478,11 +476,6 @@ class BambuBackend(FPGABackend):
                 f'C++ testbench execution failed:\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
             )
             
-            # Store testbench results from log file
-            csim_results = os.path.join(project_dir, 'tb_data/csim_results.log')
-            Y_csim = np.loadtxt(csim_results)
-            result['CSimResults'] = Y_csim
-
         ### COSIM ###
         if cosim:
             if not synth:
@@ -490,7 +483,7 @@ class BambuBackend(FPGABackend):
             # --simulator=<SIMULATOR> will be selected by default by Bambu
             CMD_ARGS += [f'--generate-tb={project_name}_test.cpp', '--simulate', '-DRTL_SIM']
 
-        ### VALIDATION ### (seems redundant, cause Bambu does validation already and fails if it fails)
+        ### VALIDATION ###
         if validation:
             if not csim or not cosim:
                 raise ValueError("To validate C simulation & RTL simulation equality, csim and cosim must both be run.")
@@ -606,17 +599,6 @@ class BambuBackend(FPGABackend):
 
             # Add main results
             result.update(parse_bambu_report(project_dir, part_family))
-
-            # Add cosim results
-            if cosim:
-                rtl_cosim_results = os.path.join(project_dir, 'tb_data/rtl_cosim_results.log')
-                Y_cosim = np.loadtxt(rtl_cosim_results)
-                result['CosimResults'] = Y_cosim
-
-            # Add validation results
-            if validation:
-                # Test for file equivalence (implies bitwise equivalence of results)
-                result['Valid'] = filecmp.cmp(csim_results, rtl_cosim_results, shallow=False)
 
             return result
         
