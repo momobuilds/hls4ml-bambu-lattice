@@ -966,6 +966,14 @@ class BambuWriter(Writer):
 
         filedir = Path(__file__).parent
 
+        # build_bambu.sh
+        build_bambu_src = (filedir / '../templates/bambu/build_bambu.sh').resolve()
+        build_bambu_dst = Path(f'{model.config.get_output_dir()}/build_bambu.sh').resolve()
+        with open(build_bambu_src) as src, open(build_bambu_dst, 'w') as dst:
+            for line in src.readlines():
+                dst.write(line)
+        build_bambu_dst.chmod(build_bambu_dst.stat().st_mode | stat.S_IEXEC)
+
         # build_lib.sh
         build_lib_src = (filedir / '../templates/bambu/build_lib.sh').resolve()
         build_lib_dst = Path(f'{model.config.get_output_dir()}/build_lib.sh').resolve()
