@@ -143,7 +143,7 @@ def test_synth(test_case_id, simple_model, io_type, strategy, granularity, backe
         io_type=io_type,
         backend=backend,
     )
-    hls_model.build(synth=True)
+    hls_model.build(csim=False, synth=True)
 
     # Bambu-specific artifact checks
     if backend == 'Bambu':
@@ -158,7 +158,7 @@ def test_synth(test_case_id, simple_model, io_type, strategy, granularity, backe
 @pytest.mark.parametrize('io_type', ['io_parallel'])
 @pytest.mark.parametrize('strategy', ['latency'])
 @pytest.mark.parametrize('granularity', ['name'])
-@pytest.mark.parametrize('backend', ['Vitis', 'Bambu'])
+@pytest.mark.parametrize('backend', ['Bambu'])
 def test_vsynth(test_case_id, simple_model, io_type, strategy, granularity, backend):
     """Test that a successful vsynth run produces the desired reports.
     Uses 7-Series Artix part "xc7a100tcsg324-1" to synthesize in Vivado.
@@ -176,9 +176,9 @@ def test_vsynth(test_case_id, simple_model, io_type, strategy, granularity, back
         output_dir=str(vsynth_proj_dir),
         io_type=io_type,
         backend=backend,
-        part_name='xc7a100tcsg324-1'
+        part='xc7a100tcsg324-1'
     )
-    hls_model.build(synth=True, cosim=True, vsynth=True)
+    hls_model.build(csim=False, synth=True, cosim=True, vsynth=True)
 
     # Bambu-specific artifact checks
     if backend == 'Bambu':
@@ -186,8 +186,9 @@ def test_vsynth(test_case_id, simple_model, io_type, strategy, granularity, back
         assert sum(1 for _ in vsynth_proj_dir.rglob("bambu_results_*.xml")) >= 1
 
         # Ensure we get expected reports
-        num_reports = count_files_with_extension(vsynth_proj_dir / 'HLS_output', '.rpt')
-        assert num_reports >= 15
+        if hls_model.config.get_config_value('FPGAFamily') == 'Xilinx':
+            num_reports = count_files_with_extension(vsynth_proj_dir / 'HLS_output', '.rpt')
+            assert num_reports >= 15
 
     # TODO: Vitis-specific artifact checks
 

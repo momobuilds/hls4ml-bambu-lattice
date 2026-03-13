@@ -1,6 +1,6 @@
-import filecmp
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
@@ -523,13 +523,23 @@ class BambuBackend(FPGABackend):
             command_tokens += self._normalize_bambu_command(args)
         command_str = ' '.join(shlex.quote(str(token)) for token in command_tokens)
 
-        # Write formatted command to build_bambu.sh for later execution
-        script_path = os.path.join(project_dir, 'build_bambu.sh')
-        with open(script_path) as f:
-            content = f.read()
-        content = content.replace("<insert_bambu_command>", command_str)
-        with open(script_path, "w") as f:
-            f.write(content)
+        # Write/rewrite formatted command to build_bambu.sh for later execution
+        script_path = Path(project_dir) / "build_bambu.sh"
+        content = script_path.read_text()
+        content = self._replace_block(
+            content,
+            "# HLS4ML insert_bambu_command BEGIN",
+            "# HLS4ML insert_bambu_command END",
+            command_str
+        )
+        copy_code = self._final_report_copying_code(part_family) if vsynth else ""
+        content = self._replace_block(
+            content,
+            "# HLS4ML insert_final_report_copying BEGIN",
+            "# HLS4ML insert_final_report_copying END",
+            copy_code
+        )
+        script_path.write_text(content)
 
 
         if not synth:
@@ -614,6 +624,24 @@ class BambuBackend(FPGABackend):
             raise RuntimeError(
                 f'Failed to build testbench executable for "{model.config.get_project_name()}":\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
             )
+        
+    @staticmethod
+    def _final_report_copying_code(family):
+        """Aggregate final reports in one directory based on Part Family/Software used"""
+        if family == 'Xilinx':
+            return(
+                'src_root="HLS_output/Synthesis/vivado_flow"\n'
+                'dst_root="vivado_reports"\n'
+                'mkdir -p "$dst_root"\n'
+                'find "$src_root" -type f \( -iname "*.rpt" -o -iname "*.xml" \) -exec cp -p {} "$dst_root"/ \;'
+            )
+
+    @staticmethod
+    def _replace_block(content, start, end, new_body):
+        pattern = rf"{start}.*?{end}"
+        replacement = f"{start}\n{new_body}\n{end}"
+        return re.sub(pattern, replacement, content, flags=re.S)
+
 
     @staticmethod
     def _ensure_bambu_available():
