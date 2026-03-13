@@ -158,7 +158,7 @@ def test_synth(test_case_id, simple_model, io_type, strategy, granularity, backe
 @pytest.mark.parametrize('io_type', ['io_parallel'])
 @pytest.mark.parametrize('strategy', ['latency'])
 @pytest.mark.parametrize('granularity', ['name'])
-@pytest.mark.parametrize('backend', ['Bambu'])
+@pytest.mark.parametrize('backend', ['Vitis', 'Bambu'])
 def test_vsynth(test_case_id, simple_model, io_type, strategy, granularity, backend):
     """Test that a successful vsynth run produces the desired reports.
     Uses 7-Series Artix part "xc7a100tcsg324-1" to synthesize in Vivado.
