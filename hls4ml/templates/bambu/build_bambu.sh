@@ -1,9 +1,7 @@
 #!/bin/bash
 set -e
-<insert_bambu_command>
+# HLS4ML insert_bambu_command BEGIN
+# HLS4ML insert_bambu_command END
 
-# copy final reports
-src_root="HLS_output/Synthesis/vivado_flow"
-dst_root="vivado_reports"
-mkdir -p "$dst_root"
-find "$src_root" -type f \( -iname "*.rpt" -o -iname "*.xml" \) -exec cp -p {} "$dst_root"/ \;
+# HLS4ML insert_final_report_copying BEGIN
+# HLS4ML insert_final_report_copying END
