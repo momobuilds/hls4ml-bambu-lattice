@@ -625,7 +625,6 @@ class BambuBackend(FPGABackend):
                 f'Failed to build testbench executable for "{model.config.get_project_name()}":\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
             )
         
-    @staticmethod
     def _final_report_copying_code(family):
         """Aggregate final reports in one directory based on Part Family/Software used"""
         if family == 'Xilinx':
@@ -636,7 +635,6 @@ class BambuBackend(FPGABackend):
                 'find "$src_root" -type f \( -iname "*.rpt" -o -iname "*.xml" \) -exec cp -p {} "$dst_root"/ \;'
             )
 
-    @staticmethod
     def _replace_block(content, start, end, new_body):
         pattern = rf"{start}.*?{end}"
         replacement = f"{start}\n{new_body}\n{end}"
