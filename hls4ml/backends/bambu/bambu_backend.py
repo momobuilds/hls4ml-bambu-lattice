@@ -425,13 +425,15 @@ class BambuBackend(FPGABackend):
         if os.environ.get('USE_BAMBU_AC_TYPES'):
             REQ_ARGS = ['-lm',
                         '--compiler=I386_CLANG16',
-                        '--generate-interface=INFER'
+                        '--generate-interface=INFER',
+                        '-v4'
                        ]
         else:
             REQ_ARGS = ['-lm', 
                         '-Ifirmware/ac_types',
                         '--compiler=I386_CLANG16',
-                        '--generate-interface=INFER'
+                        '--generate-interface=INFER',
+                        '-v4'
                        ]
         CMD_ARGS      = []
         
@@ -625,7 +627,7 @@ class BambuBackend(FPGABackend):
                 f'Failed to build testbench executable for "{model.config.get_project_name()}":\nSTDOUT:\n{ret.stdout}\nSTDERR:\n{ret.stderr}'
             )
         
-    def _final_report_copying_code(family):
+    def _final_report_copying_code(self, family):
         """Aggregate final reports in one directory based on Part Family/Software used"""
         if family == 'Xilinx':
             return(
@@ -634,8 +636,10 @@ class BambuBackend(FPGABackend):
                 'mkdir -p "$dst_root"\n'
                 'find "$src_root" -type f \( -iname "*.rpt" -o -iname "*.xml" \) -exec cp -p {} "$dst_root"/ \;'
             )
+        else: # TODO: Add more parsing code for different families/softwares
+            return ""
 
-    def _replace_block(content, start, end, new_body):
+    def _replace_block(self, content, start, end, new_body):
         pattern = rf"{start}.*?{end}"
         replacement = f"{start}\n{new_body}\n{end}"
         return re.sub(pattern, replacement, content, flags=re.S)
