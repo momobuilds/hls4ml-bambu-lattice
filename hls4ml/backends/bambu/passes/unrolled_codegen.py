@@ -79,7 +79,7 @@ class GenerateUnrolledDenseResource(OptimizerPass):
             '    typename CONFIG_T::weight_t weights[CONFIG_T::n_in * CONFIG_T::n_out],\n'
             '    typename CONFIG_T::bias_t biases[CONFIG_T::n_out]\n'
             '    ) {{{{\n'
-            '        #pragma HLS pipeline II=CONFIG_T::reuse_factor\n'
+            '        //#pragma HLS pipeline II=CONFIG_T::reuse_factor\n'
             '\n'
             '        constexpr int block_factor = DIV_ROUNDUP(CONFIG_T::n_in * CONFIG_T::n_out, CONFIG_T::reuse_factor);\n'
             '        #pragma HLS ARRAY_RESHAPE variable=weights block factor=block_factor\n'
@@ -90,8 +90,8 @@ class GenerateUnrolledDenseResource(OptimizerPass):
             '        #pragma HLS ARRAY_PARTITION variable=acc complete\n'
             '\n'
             '        InitAccum:\n'
+            '        #pragma HLS UNROLL\n'
             '        for (int i = 0; i < CONFIG_T::n_out; i++) {{{{\n'
-            '            #pragma HLS UNROLL\n'
             '            acc[i] = (typename CONFIG_T::accum_t) biases[i];\n'
             '        }}}}\n'
             '\n'
@@ -111,8 +111,8 @@ class GenerateUnrolledDenseResource(OptimizerPass):
         generated_code += mult_code + '\n'
         generated_code += (
             '        Result:\n'
-            '        for (int i = 0; i < CONFIG_T::n_out; i++) {{\n'
-            '            #pragma HLS UNROLL\n'
+            '        #pragma HLS UNROLL\n'
+            '        for (int i = 0; i < CONFIG_T::n_out; i++) {{\n'    
             '            res[i] = cast<data_T, res_T, CONFIG_T>(acc[i]);\n'
             '        }}\n'
             '    }}\n'
@@ -231,13 +231,7 @@ class GenerateUnrolledDenseResource(OptimizerPass):
         return mult_code
 
     def _add_backend_specific_pragmas_to_generated_code(self, code, backend):
-        if backend.name == 'Vivado':
-            weights_resource_pragma = '#pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM'
-        elif backend.name == 'Vitis':
-            weights_resource_pragma = '#pragma HLS BIND_STORAGE variable=weights type=ROM_NP impl=BRAM'
-        else:
-            raise Exception(f'Unexpected backend {backend.name} in GenerateUnrolledDenseResource optimizer.')
-
+        weights_resource_pragma = ''
         code = code.format(weights_resource_pragma=weights_resource_pragma)
 
         return code
