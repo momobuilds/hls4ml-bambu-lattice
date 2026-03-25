@@ -1,0 +1,87 @@
+Backend: Bambu
+ClockPeriod: 5
+ClockUncertainty: 12.5%
+HLSConfig:
+  LayerName:
+    conv1:
+      ConvImplementation: LineBuffer
+      ParallelizationFactor: 1
+      Precision:
+        accum: auto
+        bias: auto
+        result: auto
+        weight: auto
+      ReuseFactor: 1
+      Trace: false
+    conv1_relu:
+      Precision:
+        result: auto
+        table: fixed<18,8,TRN,WRAP,0>
+      ReuseFactor: 1
+      TableSize: 1024
+      Trace: false
+    flatten:
+      Precision:
+        result: auto
+      Trace: false
+    input_layer:
+      Precision:
+        result: auto
+      Trace: false
+    output:
+      Precision:
+        accum: auto
+        bias: auto
+        result: auto
+        weight: auto
+      ReuseFactor: 1
+      Trace: false
+    output_softmax:
+      Implementation: stable
+      Precision:
+        accum: fixed<18,8,RND,SAT,0>
+        exp_table: fixed<18,8,RND,SAT,0>
+        inv_inp: fixed<18,8,RND,SAT,0>
+        inv_table: fixed<18,8,RND,SAT,0>
+        result: auto
+        table: fixed<18,8,TRN,WRAP,0>
+      ReuseFactor: 1
+      Skip: false
+      TableSize: 1024
+      Trace: false
+    pool1:
+      ConvImplementation: LineBuffer
+      Precision:
+        accum: auto
+        result: auto
+      ReuseFactor: 1
+      Trace: false
+  Model:
+    BitExact: null
+    BramFactor: 1000000000
+    Precision: ap_fixed<16,6>
+    ReuseFactor: 4
+    Strategy: Latency
+    TraceOutput: false
+IOType: io_parallel
+InputData: null
+InputShapes:
+  input_layer:
+  - 28
+  - 28
+  - 1
+KerasModel: !keras_model 'hls_output/keras_model.keras'
+OutputDir: hls_output
+OutputPredictions: null
+OutputShapes:
+  layer7_out:
+  - 10
+Part: Lattice
+ProjectName: myproject
+Stamp: 63feb3fd
+Version: 1.0.0
+WriterConfig:
+  Namespace: null
+  TBOutputStream: both
+  WriteTar: false
+  WriteWeightsTxt: true
