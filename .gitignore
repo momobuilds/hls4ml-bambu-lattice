@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -8,3 +9,22 @@ wheels/
 
 # Virtual environments
 .venv
+=======
+*.pyc
+_version.py
+__pycache__
+build/
+dist/
+sdist/
+*.egg-info/
+vivado_prj
+.vscode
+my-hls-test
+*.tar.gz
+docs/_build
+docs/autodoc/*
+test/pytest/*_test_*
+*~
+*.ipynb_checkpoints/
+*.bak
+>>>>>>> bambu-backend
