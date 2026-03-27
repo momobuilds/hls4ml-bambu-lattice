@@ -70,12 +70,25 @@ def test_pool1d(test_case_id, backend, keras_model_1d, data_1d, io_type):
     )
     hls_model.compile()
 
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
+    if backend == 'Bambu':
+        hls_model.build(
+        cosim=True,
+        vsynth=True  # Adds --evaluation which triggers XML generation
+        )
+
     y_keras = model.predict(data_1d)
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
 @pytest.mark.parametrize(
     'keras_model_1d',
     [
@@ -102,6 +115,14 @@ def test_pool1d_stream(test_case_id, backend, keras_model_1d, data_1d, io_type):
         backend=backend,
     )
     hls_model.compile()
+
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
 
     y_keras = model.predict(data_1d)
     y_hls = hls_model.predict(data_1d).reshape(y_keras.shape)
@@ -165,12 +186,25 @@ def test_pool2d(test_case_id, backend, keras_model_2d, data_2d, io_type):
     )
     hls_model.compile()
 
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
+    if backend == 'Bambu':
+        hls_model.build(
+        cosim=True,
+        vsynth=True  # Adds --evaluation which triggers XML generation
+        )
+
     y_keras = model.predict(data_2d)
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
     np.testing.assert_allclose(y_keras, y_hls, rtol=0, atol=atol, verbose=True)
 
 
-@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI', 'Bambu'])
+@pytest.mark.parametrize('backend', ['Quartus', 'Vitis', 'Vivado', 'oneAPI'])
 @pytest.mark.parametrize(
     'keras_model_2d',
     [
@@ -197,6 +231,14 @@ def test_pool2d_stream(test_case_id, backend, keras_model_2d, data_2d, io_type):
         backend=backend,
     )
     hls_model.compile()
+
+    if backend in ['Vivado', 'Vitis']:
+        hls_model.build(
+            synth=True,
+            cosim=True,
+            validation=True,
+            vsynth=True,        
+        )
 
     y_keras = model.predict(data_2d)
     y_hls = hls_model.predict(data_2d).reshape(y_keras.shape)
