@@ -31,7 +31,7 @@
  * @file hls_stream.h
  * @brief Implementation of hls::stream object.
  *
- * @author Michele Fiorito <michele.fiorito@polimi.it>
+ * @author Fabrizio Ferrandi <fabrizio.ferrandi@polimi.it>
  */
 #ifndef __HLS_STREAM_H
 #define __HLS_STREAM_H
@@ -40,8 +40,72 @@
 
 namespace hls
 {
-   template <typename T>
-   using stream = ac_channel<T>;
+   template <typename T, int DEPTH = 0>
+   class stream : public ac_channel<T>
+   {
+    public:
+      using element_type = T;
+      using base_type = ac_channel<T>;
 
+      stream() : base_type()
+      {
+      }
+
+      stream(const char*) : base_type()
+      {
+      }
+
+#if !defined(__BAMBU__) || defined(__BAMBU_SIM__)
+   stream(const stream<T>&) = default;
+   stream(int init) : ac_channel<T>(init){}
+   stream(int init, T val): ac_channel<T>(init, val){}
+   stream(std::initializer_list<T> val) : ac_channel<T>(val) {}
+   stream& operator=(const stream<T>&) = default;
+#endif
+
+
+      virtual ~stream() = default;
+
+      void operator>>(T& rdata)
+      {
+         this->read(rdata);
+      }
+
+      void operator<<(const T& wdata)
+      {
+         this->write(wdata);
+      }
+
+      bool full()
+      {
+         return DEPTH == 0 ? false : (DEPTH == this->size());
+      }
+
+      bool read_nb(T& head)
+      {
+         return this->nb_read(head);
+      }
+
+      bool write_nb(T& tail)
+      {
+         return this->nb_write(tail);
+      }
+
+      bool write_nb(const T& tail)
+      {
+         T tail_copy = tail;
+         return write_nb(tail_copy);
+      }
+
+      void set_name(const char*)
+      {
+      }
+
+    private:
+#if defined(__BAMBU__) && !defined(__BAMBU_SIM__)
+      stream(const stream&) = delete;
+      stream& operator=(const stream&) = delete;
+#endif
+   };
 } // namespace hls
 #endif
